@@ -85,6 +85,8 @@ git 有三种状态，你的文件可能处于其中之一：
 
    * `git clone [url]`：拉取远程仓库到本地
 
+     说明：clone 是本地没有 git 仓库时，将远程仓库整个下载过来；而 pull 是本地有 git 仓库时，将远程仓库里新的提交数据下载过来，并且与本地代码合并。
+
 2. **添加文件到仓库**
 
    * `git add .` 、`git add [filename]`：添加所有/单个文件到暂存区
@@ -121,7 +123,7 @@ git 有三种状态，你的文件可能处于其中之一：
 
    * `git reset HEAD [filename]`：暂存区文件撤销，将暂存区文件撤销到工作区
 
-   * `git reser --hard [commitID]`：版本库撤销
+   * `git reset --hard [commitID]`：版本库撤销
 
      说明：需要使用 `git log` 命令查看提交的日志，复制 commitID，然后恢复到指定版本
 
@@ -135,11 +137,17 @@ git 有三种状态，你的文件可能处于其中之一：
 
    * `git checkout [name]`：切换分支
 
-     说明：星号 * 表明了当前位于哪个分支上。
-
    * `git checkout -b [name]`：创建并切换分支
 
-2. **合并/删除分支**
+2. **查看分支**
+
+   * `git branch`：查看当前分支
+
+   * `git branch -a`：查看所有分支信息
+
+     说明：星号 * 表明了当前位于哪个分支上，本地分支为“本地分支名”，远程分支为“远程仓库名/分支名”。
+
+3. **合并/删除分支**
 
    * `git merge [name]`：合并某分支到当前分支
 
@@ -149,15 +157,39 @@ git 有三种状态，你的文件可能处于其中之一：
 
      说明：删除远程分支建议使用界面操作。
 
-3. **远程版本库**
+4. **远程版本库**
 
    * `git push origin [name]`：向远程版本库推送分支
 
-     说明：**github 下的远程仓库名默认为 origin**，远程版本库其实也是一个分支，默认名为 origin/master 。
+     说明：**github 的远程仓库名默认为 origin**，远程版本库其实也是一个分支，默认名为 origin/master。
 
    * `git fetch/pull origin [name]`：从远程版本库抓取分支
 
      说明：fetch 和 pull 都可以将远程版本库的代码同步到本地，区别是 fetch 命令同步下来的代码不会合并到任何分支，而是**存放在 origin/master 分支上**；pull 命令则会合并到本地，**相当于将 fetch 和 merge 命令一起执行**。
+     
+   * `git remote add origin [url]`：添加一个远程仓库
+
+
+
+### 3.4 代码标签
+
+1. **添加 tag 标签**
+
+   * `git tag [name]`：给当前版本添加 tag
+
+   * `git tag [name] [commitID]`：给历史版本添加 tag
+
+     说明：当代码达到一个重要的阶段，并希望永远记住那个特别的提交快照，可以给它打上标签。tag 标签也是版本库的快照，指向某个 commit 的指针，这跟分支很像，但是分支可以移动，标签不能移动。所以，创建和删除标签都是瞬间完成的。
+
+2. **删除 tag 标签**
+
+   * `git tag -d [name]`：删除本地标签
+   * `git push origin -d [name]`：删除远程标签
+   
+3. **查看/推送 tag 标签**
+
+   * `git tag`：查看本地标签
+   * `git push origin [name]`：推送本地标签至远程仓库
 
 
 
