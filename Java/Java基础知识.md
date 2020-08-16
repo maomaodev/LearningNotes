@@ -459,11 +459,11 @@ public class Test {
 
 
 
-## 18. hashCode 和 equals
+## 18. hashCode() 和 equals()
 
-**hashCode()介绍**
+**hashCode() 介绍**
 
-hashCode() 的作用是**获取哈希码**，也称为散列码，它实际上是返回一个int整数，用来**确定该对象在哈希表中的索引位置**。hashCode() 定义在Object类中，这就意味着Java中的任何类都包含有hashCode() 方法。虽然，每个Java类都包含该方法，但是**hashCode()只有在散列表中才有用，在其它情况没用**，这里的散列表指的是：Java集合中本质是散列表的类，如HashMap，Hashtable，HashSet。
+hashCode() 的作用是**获取哈希码**，也称为散列码，它实际上是返回一个 int 整数，用来**确定该对象在哈希表中的索引位置**。hashCode() 定义在Object类中，这就意味着Java中的任何类都包含有hashCode() 方法。虽然，每个Java类都包含该方法，但是**hashCode()只有在散列表中才有用，在其它情况没用**，这里的散列表指的是：Java集合中本质是散列表的类，如**HashMap，Hashtable，HashSet**。
 
 以 HashSet 为例，当向 HashSet 中添加元素 A 时，**首先调用元素 A 所在类的 hashCode() 方法**，计算元素 A 的哈希值，然后此哈希值通过某种算法计算出在 HashSet 底层数组中的存放位置（即索引位置），判断此位置是否已经有元素：
 
@@ -471,14 +471,14 @@ hashCode() 的作用是**获取哈希码**，也称为散列码，它实际上�
 2. 如果此位置上有其他元素 B（或以链表形式存在的多个元素），则比较元素 A 与元素 B 的哈希值：如果哈希值不同，则添加元素 A 成功；
 3. 如果哈希值相同，则**进一步调用元素 A 所在类的 equals() 方法**：如果返回 false，则添加元素 A 成功；如果返回 true，则添加元素 A 失败。这样我们就大大减少了 equals 的次数，相应就大大提高了执行速度。
 
-**equals()特点**
+**equals() 介绍**
 
 
-1. 自反性：x.equals(x)必须返回是"true"。
-2. 对称性：如果x.equals(y)返回是"true"，那么y.equals(x)也应该返回是"true"。
-3. 传递性：如果x.equals(y)返回是"true"，而且y.equals(z)返回是"true"，那么x.equals(z)也应该返回是"true"。
-4. 一致性：如果x.equals(y)返回是"true"，只要x和y内容一直不变，不管你重复x.equals(y)多少次，返回都是"true"。
-5. 非空性：x.equals(null)，永远返回是"false"；x.equals(和x不同类型的对象)永远返回是"false"。
+1. **自反性**：x.equals(x)必须返回是"true"。
+2. **对称性**：如果x.equals(y)返回是"true"，那么y.equals(x)也应该返回是"true"。
+3. **传递性**：如果x.equals(y)返回是"true"，而且y.equals(z)返回是"true"，那么x.equals(z)也应该返回是"true"。
+4. **一致性**：如果x.equals(y)返回是"true"，只要x和y内容一直不变，不管你重复x.equals(y)多少次，返回都是"true"。
+5. **非空性**：x.equals(null)，永远返回是"false"；x.equals(和x不同类型的对象)永远返回是"false"。
 
 **hashCode() 和 equals() 关系**
 
@@ -488,6 +488,68 @@ hashCode() 的作用是**获取哈希码**，也称为散列码，它实际上�
   2. 对于两个对象，如果使用 equals() 比较返回 true，那么这两个对象的 hashCode 值一定是相同的。
   3. **如果重写了equals()方法，那么也要重写hashCode()方法。**因为如果没有重写 hashCode()，那么该类的两个对象无论如何都不会相等（除非它们引用的是同一个对象），此时 equals() 方法也就失去了意义。
   4. 对于 Object 类来说，hashCode 值表示的是对象的地址，因此不同的 Object 对象的 hashCode 值是不同的。
+
+**如何重写 equals() 方法**
+
+1. **使用 == 操作符检查“参数是否为这个对象的引用”**。这是一种性能优化，因为比较操作有可能很昂贵。
+2. **使用 instanceof 操作符检查“参数是否为正确的类型”**。
+3. **把参数转换为正确的类型**。因为前面已经进行过 instanceof 测试，所以确保会成功。
+4. **对于该类中的每个“关键域”，检查参数中的域是否与该对象中对应的域匹配**。对于 float 域，可以使用 Float.compare 方法；对于 double 域，则使用 Double.compare 方法；对于其它基本数据类型，可以直接使用 == 操作符；对于对象引用，可以递归调用 equals 方法；对于数组，则要把以上原则应用到每个元素上，还可以使用 Arrays.equals 方法。
+5. **重写后，检查它是否是对称的、传递的、一致的**。自反性和飞空性一般会自动满足。
+
+下面是 String 类中的 equals 方法源码，就符合上述原则。重写时还有以下告诫：
+
+* **覆盖 equals 时总要覆盖 hashCode**。否则导致该类无法与基于散列表的集合一起正常使用。
+* **不要将 equals 形参中的 Object 对象替换为其它类型**。这不是覆盖（重写），而是重载。
+
+```java
+	public boolean equals(Object anObject) {
+        if (this == anObject) {
+            return true;
+        }
+        if (anObject instanceof String) {
+            String aString = (String)anObject;
+            if (!COMPACT_STRINGS || this.coder == aString.coder) {
+                return StringLatin1.equals(value, aString.value);
+            }
+        }
+        return false;
+    }
+```
+
+**如何重写 hashCode() 方法**
+
+1. 把某个非 0 的常数值，如17，保存在int 类型的 result 变量中。
+2. 对于对象中每个关键域 f（指 equals 方法中涉及的每个域）：
+   * 为该域计算 int 类型的散列码 c：
+     * 如果是 boolean 类型，则计算 f ? 1 : 0
+     * 如果是 byte、char、short、int 类型，则计算 (int) f
+     * 如果是 long 类型，则计算(int) (f ^ f >>> 32)
+     * 如果是 float 类型，则计算 Float.floatToIntBits(f)
+     * 如果是 double 类型，则计算 Double.doubleToLongBits(f)，然后再为得到的 long 类型计算散列值
+     * 如果是对象引用，且该类的 equals 方法通过递归调用 equals 方式来比较这个域，则同样为这个域递归调用 hashCode。
+     * 如果是数组，则对每个元素递归使用上述规则，还可以使用 Arrays.hashCode 方法
+   * 按照下面的公式，把上面计算得到的散列码 c 合并到 result 中：`result = 31 * result + c;`。使用 31 是因为可用移位和减法代替乘法，31 * i = (32 - 1) * i = (i << 5) - i，虚拟机可以自动完成这种优化。
+3. 返回 result。
+4. 重写后，检查它是否“相等的实例都具有相等的散列码”。
+
+下面是 Arrays 类中的 hashCode 方法源码，就符合上述原则。
+
+```java
+	public static int hashCode(double a[]) {
+        if (a == null)
+            return 0;
+
+        int result = 1;
+        for (double element : a) {
+            long bits = Double.doubleToLongBits(element);
+            result = 31 * result + (int)(bits ^ (bits >>> 32));
+        }
+        return result;
+    }
+```
+
+
 
 
 

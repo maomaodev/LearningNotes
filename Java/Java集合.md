@@ -7,12 +7,12 @@
 **Set(无序、不可重复)**：主要包括 `HashSet`、`LinkedHashSet` 和 `TreeSet`
 
 1. 无序性不等于随机性，存储的数据在底层数组中并非按照数组索引的顺序添加，而是根据数据计算的哈希值。
-2. 为了保证不可重复性，要求向 Set 中添加的元素，其所在的类一定要重写 hashCode() 和 equals() 方法（如果是 TreeSet，需要重写 compare() 或 compareTo() 方法），重写时应该尽可能保证一致，即相等的对象必须具有相等的散列码。
+2. 为了保证不可重复性，要求向 Set 中添加的元素，**其所在的类一定要重写 hashCode() 和 equals() 方法（如果是 TreeSet，需要重写 compare() 或 compareTo() 方法）**，重写时应该尽可能保证一致，即相等的对象必须具有相等的散列码。
 3. LinkedHashSet 能保证按照添加元素的顺序实现遍历（并非真正有序），是因为它在添加元素的同时，还维护了两个引用，记录此元素的前一个元素和后一个元素。因此，对于频繁的遍历操作，LinkedHashSet 效率高于 HashSet（LinkedHashMap 类似）。
 
 **Map(key-value键值对)**： 主要包括 `HashMap`、`LinkedHashMap` 和 `TreeMap`（`Hashtable` 是 `HashMap` 的古老版本）
 
-1. key 是无序、不可重复的，所以使用 Set 存储所有的 key，且 key 所在的类要重写equals() 和 hashCode() 方法（如果是TreeMap，需要重写compare() 或 compareTo() 方法）。
+1. key 是无序、不可重复的，所以使用 Set 存储所有的 key，**且 key 所在的类要重写equals() 和 hashCode() 方法（如果是TreeMap，需要重写compare() 或 compareTo() 方法）**。
 
 2. value 是无序、可重复的，所以使用 Collection 存储所有的 value，且 value 所在的类要重写 equals() 方法，以保证 containsValue() 方法能正确返回。
 
@@ -122,10 +122,26 @@ public boolean add(E e) {
 
 ## 6. comparable 和 Comparator的区别
 
-- comparable 接口出自 java.lang 包 ，它有一个 `compareTo(Object obj)`方法自然排序
-- comparator 接口出自 java.util 包，它有一个`compare(Object obj1, Object obj2)`方法定制排序
+- comparable 接口出自 java.lang 包 ，它有一个 `compareTo(T o)`方法自然排序
+- comparator 接口出自 java.util 包，它有一个`compare(T o1, T o2)`方法定制排序
 
-一般我们需要对一个集合使用自定义排序时，就要重写`compareTo()`方法或`compare()`方法，值得注意的是，String 类和包装类默认已经实现了`Comparable`接口。当我们需要对某一个集合实现两种排序方式，比如一个song对象中的歌名和歌手名分别采用一种排序方法的话，我们可以重写`compareTo()`方法和使用自制的Comparator方法，或者以两个Comparator来实现歌名排序和歌手名排序。
+```java
+public interface Comparable<T> {
+    // 当前对象小于、等于、大于指定对象o时，分别返回负整数、零、正整数
+    public int compareTo(T o);
+}
+
+@FunctionalInterface
+public interface Comparator<T> {
+    // 若o1>o2，返回正整数；若o1=o2，返回0；若o1<o2，返回负整数
+    int compare(T o1, T o2);
+    // ...
+}
+```
+
+一般我们需要对一个集合使用自定义排序时，就要重写`compareTo()`方法或`compare()`方法，值得注意的是，String 类和包装类默认已经实现了`Comparable`接口，事实上，Java 中所有的值类都实现了`Comparable`接口。
+
+当我们需要对某一个集合实现两种排序方式，比如一个 song 对象中的歌名和歌手名分别采用一种排序方法的话，我们可以重写`compareTo()`方法和使用自制的Comparator方法，或者以两个Comparator来实现歌名排序和歌手名排序。
 
 ### Comparator 定制排序
 
@@ -136,7 +152,6 @@ Collections.sort(list);
 System.out.println("自然排序：" + list);	// 自然排序：[-9, -7, -5, -1, 3, 3, 4, 7]
 
 Collections.sort(list, new Comparator<Integer>() {
-	// 重写compare()方法：若o1>o2，返回正数；若o1=o2，返回0；若o1<o2，返回负数
     @Override
     public int compare(Integer o1, Integer o2) {
         // 也可以调用Integer类实现的compareTo()方法：o2.compareTo(o1)
@@ -147,6 +162,15 @@ System.out.println("定制排序：" + list);	// 定制排序：[7, 4, 3, 3, -1,
 ```
 
 ### comparable 自然排序
+
+compareTo 方法的通用约定与 equals 方法类似，其中符号 sgn 根据表达式的值为负值、零、正值，分别返回 -1、0、1。
+
+1. **类似自反性**：若 x.compareTo(y) == 0，则对所有 z 都满足 sgn(x.compareTo(z)) == sgn(y.compareTo(z))
+2. **类似对称性**：对所有 x、y 都满足 sgn(x.compareTo(y)) == -sgn(y.compareTo(x))
+3. **类似传递性**：如果（x.compareTo(y) > 0 && y.compareTo(z) > 0），则 x.compareTo(z) > 0 
+4. **建议**：(x.compareTo(y) == 0)  == (x.equals(y))
+
+违反 hashCode 和 equals 约定，会导致该类无法与**散列表集合类（HashSet、HashMap、Hashtable）**一起正常使用；类似的，违反 compareTo 约定，会导致该类无法与**有序集合类（TreeSet、TreeMap），以及工具类 Collections 和 Arrays** 一起正常使用，它们内部包含了搜索和排序算法。
 
 ```java
 // Person对象需要实现Comparable接口，才可以使TreeSet中的数据按顺序排列
@@ -279,11 +303,13 @@ static int hash(int h) {
 
 
 
-## 10. HashMap 多线程操作导致死循环问题
+## 10. HashMap 多线程操作问题
 
-主要原因在于并发下的 Rehash 会造成元素之间会形成一个循环链表。不过，jdk 1.8 后解决了这个问题，但是还是不建议在多线程下使用 HashMap，因为多线程下使用 HashMap 还是会存在其他问题比如数据丢失。并发环境下推荐使用 ConcurrentHashMap 。
+HashMap 没有做并发控制，如果想在多线程高并发环境下使用，请用 ConcurrentHashMap。同一时刻如果有多个线程同时执行 put 操作，如果计算出来的索引（桶）位置是相同的，那会造成前一个 key 被后一个 key 覆盖，即**数据丢失**。
 
-详情请查看：<https://coolshell.cn/articles/9606.html>
+比如线程 A 和线程 B 同时执行 put 操作，很巧的是计算出的索引都是 2，而此时，线程 A 和线程 B 都判断出索引为 2 的桶是空的，然后就是插入值了，线程 A 先 put 进去了 key1 = 1的键值对，但是，紧接着线程 B 又 put 进去了 key2 = 2，线程 A 表示痛哭流涕，白忙活一场。最后索引为 2 的桶内的值是 key2=2，也就是线程 A 的存进去的值被覆盖了。
+
+在 JDK 8 之前，并发下的 Rehash 会造成元素之间会形成一个循环链表。不过，JDK 8 后解决了这个问题，详情请查看：[JAVA HASHMAP的死循环](https://coolshell.cn/articles/9606.html)
 
 
 

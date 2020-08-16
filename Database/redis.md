@@ -1,5 +1,3 @@
-# Redis学习笔记
-
 ## 1. Redis简介
 
 ### 1.1 NoSQL介绍
