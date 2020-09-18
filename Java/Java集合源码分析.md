@@ -1,4 +1,4 @@
-## 1. ArrayList
+1. ArrayList
 
 ### 1.1 ArrayList 简介
 
@@ -1158,7 +1158,7 @@ HashMap 共有13个内部类，其中 `Node` 和 `TreeNode` 两个静态内部�
         // (n - 1) & hash 确定元素存放在哪个桶中
         // 如果桶为空，即没有碰撞，则将新生成结点放入桶中(此时这个结点是放在数组中)
         if ((p = tab[i = (n - 1) & hash]) == null)
-            tab[i] = newNode(hash, key, value, null);
+            tab[i] = newNode(hash, key, value, null);	// LinkedHashMap重写了此方法
         // 桶中已经存在元素，即发生了碰撞，则先判断是否已经存在该元素，然后再考虑插入
         else {	
             Node<K,V> e; K k;
@@ -1401,10 +1401,240 @@ HashMap 共有13个内部类，其中 `Node` 和 `TreeNode` 两个静态内部�
 
 
 
+## 4. LinkedHashMap
+
+### 4.1 LinkedHashMap 简介
+
+LinkedHashMap 继承自 HashMap，在 HashMap 基础上，通过维护一条**双向链表（没有循环）**，解决了 HashMap 不能随时保持**遍历顺序和插入顺序一致**的问题。除此之外，LinkedHashMap 对**访问顺序**也提供了相关支持。在一些场景下，该特性很有用，比如 LRU 缓存机制。在实现上，LinkedHashMap 很多方法直接继承自 HashMap，仅为维护双向链表覆写了部分方法。
+
+```java
+public class LinkedHashMap<K,V> extends HashMap<K,V> implements Map<K,V>
+```
+
+![LinkedHashMap底层数据结构](./images/Java集合/LinkedHashMap底层数据结构.png)
+
+
+
+### 4.2 LinkedHashMap 核心源码
+
+#### 4.2.1 属性
+
+```java
+	private static final long serialVersionUID = 3801124242820219131L;
+
+	// 双向链表的头指针（指向最老节点）
+    transient LinkedHashMap.Entry<K,V> head;
+
+	// 双向链表的尾指针（指向最新节点）
+    transient LinkedHashMap.Entry<K,V> tail;
+
+	// 排序方式：false表示插入顺序（默认），true表示访问顺序
+    final boolean accessOrder;
+```
+
+
+
+#### 4.2.2 构造器
+
+```java
+	// 构造一个空的、以插入为顺序、指定“初始容量”和“加载因子”的LinkedHashMap
+	public LinkedHashMap(int initialCapacity, float loadFactor) {
+        super(initialCapacity, loadFactor);	// 先调用HashMap的构造器
+        accessOrder = false;	// 默认是插入顺序
+    }
+
+    public LinkedHashMap(int initialCapacity) {
+        super(initialCapacity);
+        accessOrder = false;
+    }
+
+    public LinkedHashMap() {
+        super();
+        accessOrder = false;
+    }
+
+	// 构造一个新的、以插入为顺序、包含指定Map中键值对映射的LinkedHashMap
+    public LinkedHashMap(Map<? extends K, ? extends V> m) {
+        super();
+        accessOrder = false;
+        putMapEntries(m, false);	// HashMap中的方法，可以回调自身方法建立双向链表
+    }
+
+	// 构造一个空的指定“初始容量”、“加载因子”和“排序方式”的LinkedHashMap
+    public LinkedHashMap(int initialCapacity,
+                         float loadFactor,
+                         boolean accessOrder) {
+        super(initialCapacity, loadFactor);
+        this.accessOrder = accessOrder;
+    }
+```
+
+
+
+#### 4.2.3 内部类
+
+```java
+	// 节点（1个）
+	(1) static class Entry<K,V> extends HashMap.Node<K,V>
+	
+	// 视图（3个）
+	(2) final class LinkedKeySet extends AbstractSet<K>
+	(3) final class LinkedValues extends AbstractCollection<V>
+	(4) final class LinkedEntrySet extends AbstractSet<Map.Entry<K,V>>
+	
+    // 迭代器（4个）
+	(5) abstract class LinkedHashIterator
+    (6) final class LinkedKeyIterator extends LinkedHashIterator implements Iterator<K>
+    (7) final class LinkedValueIterator extends LinkedHashIterator implements Iterator<V>
+    (8) final class LinkedEntryIterator extends LinkedHashIterator 
+    	implements Iterator<Map.Entry<K,V>>
+```
+
+HashMap 共有8个内部类，其中 `Entry` 静态内部类是最重要的。下面分别给出它的结构：
+
+```java
+	// 继承自HashMap.Node，同时添加了before和after两个属性
+	static class Entry<K,V> extends HashMap.Node<K,V> {
+        Entry<K,V> before, after;	// 前驱节点和后继节点
+        Entry(int hash, K key, V value, Node<K,V> next) {
+            super(hash, key, value, next);
+        }
+    }
+```
+
+
+
+#### 4.2.4 方法
+
+##### (1) put() 方法
+
+LinkedHashMap 继承了 HashMap，它并没有重写父类 HashMap 的 put() 方法，只是重写了其中的部分方法。
+
+```java
+	// 重写的方法，创建一个Entry节点，链接到双向链表的尾部并返回
+	Node<K,V> newNode(int hash, K key, V value, Node<K,V> e) {
+        LinkedHashMap.Entry<K,V> p =
+            new LinkedHashMap.Entry<>(hash, key, value, e);
+        linkNodeLast(p);
+        return p;
+    }
+
+	// 将节点链接到双向链表的尾部
+    private void linkNodeLast(LinkedHashMap.Entry<K,V> p) {
+        LinkedHashMap.Entry<K,V> last = tail;
+        tail = p;
+        if (last == null)
+            head = p;	// 头指针为空，链表还未建立，则头尾指针均指向同一节点p
+        else {
+            p.before = last;
+            last.after = p;
+        }
+    }
+
+	// 重写的方法（HashMap中空实现），将访问的节点移动至双向链表的尾部（先删除后插入）
+    void afterNodeAccess(Node<K,V> e) { 
+        LinkedHashMap.Entry<K,V> last;
+        // 排序方式是访问顺序，且e不是双向链表的尾节点
+        if (accessOrder && (last = tail) != e) {
+            LinkedHashMap.Entry<K,V> p =
+                (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
+            p.after = null;
+            // 处理p的前驱节点
+            if (b == null)
+                head = a;
+            else
+                b.after = a;
+            // 处理p的后继节点
+            if (a != null)
+                a.before = b;
+            else
+                last = b;
+            // 处理p节点，插入双向链表的尾部
+            if (last == null)
+                head = p;
+            else {
+                p.before = last;
+                last.after = p;
+            }
+            tail = p;
+            ++modCount;
+        }
+    }
+
+	// 重写的方法（HashMap中空实现），可能会移除双向链表的头结点，即最老的元素节点
+	void afterNodeInsertion(boolean evict) { 
+        LinkedHashMap.Entry<K,V> first;
+        // put方法中evict默认为true，removeEldestEntry默认为false
+        if (evict && (first = head) != null && removeEldestEntry(first)) {
+            K key = first.key;	// first指向的是头结点，即删除双向链表的头结点
+            removeNode(hash(key), key, null, false, true);
+        }
+    }
+
+	// 如果要删除最老的元素节点，则返回true，否则返回false。该方法由put和putAll方法调用
+	// 可以重写该方法来实现缓存，通过删除过时的元素节点来减少内存消耗
+	protected boolean removeEldestEntry(Map.Entry<K,V> eldest) {
+        return false;
+    }
+```
+
+
+
+##### (2) get() 方法
+
+```java
+	// 返回指定键所映射的值，若不存该映射，返回null
+	public V get(Object key) {
+        Node<K,V> e;
+        // 直接调用父类HashMap的getNode()方法获取键值对
+        if ((e = getNode(hash(key), key)) == null)
+            return null;
+        if (accessOrder)	// 排序方式是访问顺序，则更新双向链表
+            afterNodeAccess(e);
+        return e.value;
+    }
+```
+
+
+
+### 4.3 LRU 缓存机制
+
+LRU 是 Least Recently Used 的缩写，即**最近最少使用**，是一种常用的页面置换算法，选择最近最久未使用的页面予以淘汰。题目详见 [146. LRU缓存机制](https://leetcode-cn.com/problems/lru-cache/)。
+
+```java
+public class LRUCache {
+    private final int capacity;	// 缓存容量
+    private LinkedHashMap<Integer, Integer> cache;	// 缓存实现
+
+    public LRUCache(int capacity) {
+        this.capacity = capacity;
+        // accessOrder为true表示访问后将该键值对移至链表末尾
+        cache = new LinkedHashMap<>(capacity, 0.75f, true) {
+            // 如果返回true则删除最老的键值对，返回false则不删除，该方法由put和putAll方法调用
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Integer, Integer> eldest) {
+                return cache.size() > capacity;
+            }
+        };
+    }
+
+    public int get(int key) {
+        return cache.getOrDefault(key, -1);
+    }
+
+    public void put(int key, int value) {
+        cache.put(key, value);
+    }
+}
+```
+
+
+
 
 
 ## 参考
 
-1. [Map源码分析: HashMap (上)](https://blog.csdn.net/qq_41655934/article/details/89339927)
-2. [Map源码分析: HashMap (下)](https://blog.csdn.net/qq_41655934/article/details/89429663)
+1. [Map 源码分析: HashMap (上)](https://blog.csdn.net/qq_41655934/article/details/89339927)
+2. [Map 源码分析: HashMap (下)](https://blog.csdn.net/qq_41655934/article/details/89429663)
 3. [Java 8系列之重新认识HashMap](https://zhuanlan.zhihu.com/p/21673805)
+4. [LinkedHashMap 源码详细分析](https://www.imooc.com/article/22931)

@@ -39,7 +39,7 @@
 **Map**
 
 - **HashMap：** JDK 8之前 HashMap 由数组 + 链表组成的，数组是 HashMap 的主体，链表则是主要为了解决哈希冲突而存在的（“拉链法”解决冲突）。JDK 8以后在解决哈希冲突时有了较大的变化，当链表长度大于阈值（默认为8）时，将链表转化为红黑树，以减少搜索时间
-- **LinkedHashMap：** LinkedHashMap 继承自 HashMap，所以它的底层仍然是基于拉链式散列结构，即由数组 + 链表或红黑树组成。另外，LinkedHashMap 在上面结构的基础上，增加了一条双向链表，从而可以保证按照添加元素的顺序实现遍历。详细可以查看：[《LinkedHashMap 源码详细分析（JDK1.8）》](https://www.imooc.com/article/22931)
+- **LinkedHashMap：** LinkedHashMap 继承自 HashMap，所以它的底层仍然是基于拉链式散列结构，即由数组 + 链表或红黑树组成。另外，LinkedHashMap 在上面结构的基础上，增加了一条双向链表，从而可以保证按照添加元素的顺序实现遍历。
 - **Hashtable：** 数组 + 链表组成的，数组是 Hashtable 的主体，链表则是主要为了解决哈希冲突而存在的
 - **TreeMap：** 红黑树（自平衡的排序二叉树）
 
