@@ -1,4 +1,4 @@
-1. ArrayList
+## 1. ArrayList
 
 ### 1.1 ArrayList 简介
 
@@ -1630,6 +1630,535 @@ public class LRUCache {
 
 
 
+## 5. TreeMap
+
+### 5.1 TreeMap 简介
+
+TreeMap 底层由**红黑树**实现，红黑树结构天然支持排序，默认情况下通过 key 值进行自然排序。
+
+- HashMap 继承了AbstractMap，实现了 **NavigableMap 接口**，而 NavigableMap 继承了 SortedMap 接口，SortedMap 接口又继承了 Map 接口，可**支持一系列的导航方法**，比如返回有序的 key 集合。
+- HashMap 实现了**Cloneable 接口**，即覆盖了函数 clone()，**能被克隆（浅拷贝）**。
+- HashMap 实现 **java.io.Serializable 接口**，这意味着它 **支持序列化**，**能通过序列化去传输**。
+
+```java
+public class TreeMap<K,V> extends AbstractMap<K,V>
+    implements NavigableMap<K,V>, Cloneable, java.io.Serializable
+```
+
+
+
+### 5.2 红黑树
+
+红黑树（Red-Black Tree） 是一种自平衡二叉查找树，相对于普通的二叉树具有通过**自旋和变色**来保持树两端保持平衡的特点，从而获得较高的查找性能，可以**在 O(log n) 时间内做查找，插入和删除**。具有代表性的平衡二叉树有两种，分别为 AVL 树和红黑树，红黑树是 AVL 树的变体，它的左右子树高差有可能大于 1，但对之进行平衡的代价较低， 其平均统计性能要强于 AVL 树。
+
+#### 5.2.1 性质
+
+红黑树 RBT 为了保持树严格的平衡性质，在原来二叉查找树 BST 的基础上添加了以下五点性质：
+
+1. 节点是红色或黑色
+2. 根节点是黑色
+3. 所有叶子都是黑色（**这里的叶子是空节点**）
+4. 每个红色节点的两个子节点都是黑色
+5. 从任一节点到其每个叶子（空节点）的所有路径都包含**相同数目的黑色节点**
+
+根据以上性质，还可以得出以下两个结论：
+
+1. 从根节点到叶子节点的最长路径不大于最短路径的 2 倍，即红黑树大致上是平衡的。
+
+   > 性质 4 表明路径上不能有两个连续的红色节点，则最短的可能路径都是黑色节点，最长的可能路径有交替的红色和黑色节点。根据性质 5 所有最长的路径都有相同数目的黑色节点，这就表明了没有路径能多于任何其他路径的两倍长。
+
+2. 新加入到红黑树中的节点一定是红色。
+
+   > 假如新加入的节点是黑色，则必然破坏性质 5，但加入红色节点却不一定，除非其父节点就是红色节点，因此加入红色节点，破坏规则的可能性小一些。
+
+
+
+#### 5.2.2 旋转
+
+**左旋**：逆时针旋转两个节点，让一个节点被其右子节点取代，而该节点成为右子节点的左子节点
+
+![红黑树左旋](./images/Java集合/红黑树左旋.png)
+
+```java
+	// 红黑树左旋操作，右旋类似
+	private void rotateLeft(Entry<K,V> p) {
+        if (p != null) {
+            Entry<K,V> r = p.right;
+            // 建立上图中PL与C2的关系
+            p.right = r.left;
+            if (r.left != null)
+                r.left.parent = p;
+            // 建立上图中G与PL父节点的关系
+            r.parent = p.parent;
+            if (p.parent == null)
+                root = r;
+            else if (p.parent.left == p)
+                p.parent.left = r;
+            else
+                p.parent.right = r;
+            // 重新建立上图中PL与G的关系
+            r.left = p;
+            p.parent = r;
+        }
+    }
+```
+
+**右旋**：顺时针旋转两个节点，让一个节点被其左子节点取代，而该节点成为左子节点的右子节点
+
+![红黑树右旋](./images/Java集合/红黑树右旋.png)
+
+
+
+#### 5.2.3 插入
+
+红黑树可以看成是具有特殊性质的二叉查找树，因此红黑树的插入过程可分为两步：
+
+1. **二叉查找树的插入过程**
+
+   * 若树为空树，则创建新插入的节点并作为根节点；
+   * 若插入节点的值小于根节点的值，在左子树递归插入；
+   * 若插入节点的值大于根节点的值，在右子树递归插入。
+
+2. **红黑树的调整过程**
+
+   |         | 无需调整                   | 【变色】即可实现平衡                 | 【旋转+变色】才可实现平衡                                    |
+   | ------- | -------------------------- | ------------------------------------ | ------------------------------------------------------------ |
+   | 情况1： | 当父节点为黑色时插入子节点 | 空树插入根节点，将根节点红色变为黑色 | 父节点为红色左节点，叔父节点为黑色，插入左子节点，那么通过【左左节点旋转】 |
+   | 情况2： | -                          | 父节点和叔父节点都为红色             | 父节点为红色左节点，叔父节点为黑色，插入右子节点，那么通过【左右节点旋转】 |
+   | 情况3： | -                          | -                                    | 父节点为红色右节点，叔父节点为黑色，插入左子节点，那么通过【右左节点旋转】 |
+   | 情况4： | -                          | -                                    | 父节点为红色右节点，叔父节点为黑色，插入右子节点，那么通过【右右节点旋转】 |
+
+   - **左左节点旋转**：父节点和插入的节点都是左节点，这种情况下，祖父节点【右旋】，搭配【变色】。如下图所示，我们插入节点 65
+
+   ![红黑树左左节点旋转](./images/Java集合/红黑树左左节点旋转.png)
+
+   - **左右节点旋转**：父节点是左节点，插入的节点是右节点，这种情况下，先父节点【左旋】，然后祖父节点【右旋】，搭配【变色】。如下图所示，我们要插入节点 67
+
+   ![红黑树左右节点旋转](./images/Java集合/红黑树左右节点旋转.png)
+
+   - **右左节点旋转**：父节点是右节点，插入的节点是左节点，这种情况下，先父节点【右旋】，然后祖父节点【左旋】，搭配【变色】。如下图所示，我们要插入节点 68
+
+   ![红黑树右左节点旋转](./images/Java集合/红黑树右左节点旋转.png)
+
+   - **右右节点旋转**：父节点和插入的节点都是右节点，这种情况下，祖父节点【左旋】，搭配【变色】。如下图所示，我们插入节点 70
+
+   ![红黑树右右节点旋转](./images/Java集合/红黑树右右节点旋转.png)
+
+
+
+#### 5.2.4 删除
+
+红黑树的删除过程也可分为两步：
+
+1. **二叉查找树的删除过程**
+
+   * 待删除节点是叶子节点，直接删除；
+   * 待删除节点只有左孩子（或右孩子），孩子节点替代删除节点位置；
+   * 待删除节点有两个孩子，则找前驱或者后继（前驱是左子树中值最大的节点，后继是右子树中值最小的节点），将前驱或者后继的值复制到该节点中，然后删除前驱或者后继。
+
+2. **红黑树的调整过程**
+
+   节点删除后可能会造成红黑树的不平衡，这时我们需通过【变色】+【旋转】的方式来调整，使之平衡。下面以被删除节点为左子节点为例，展示 4 种场景（**对照代码理解**），被删除节点为右子节点时类似：
+   
+   * **场景1：节点x是黑色，兄弟节点sib是红色**。待删除节点为 x，经过一系列操作后，并没有结束，而是可能到了场景 2，或者场景 3 和 4
+   
+   ![红黑树删除场景1](./images/Java集合/红黑树删除场景1.png)
+   
+   * **场景2：节点x、兄弟节点sib、sib的左右子节点都是黑色**。待删除节点为 x，经过一系列操作后，循环就结束了，最后将节点x设置为黑色，自平衡调整完成
+   
+   ![红黑树删除场景2](./images/Java集合/红黑树删除场景2.png)
+   
+   * **场景3：节点x、兄弟节点sib、sib的右子节点都为黑色，sib的左子节点为红色**。待删除节点为 x，经过一系列操作后，并没有结束，而是进入场景 4
+   
+   ![红黑树删除场景3](./images/Java集合/红黑树删除场景3.png)
+   
+   * **场景4：节点x、兄弟节点sib都为黑色，sib的左右子节点都为红色或者右子节点为红色、左子节点为黑色**
+   
+   ![红黑树删除场景4](./images/Java集合/红黑树删除场景4.png)
+
+
+
+### 5.3 TreeMap 核心源码
+
+#### 5.3.1 属性
+
+```java
+	private static final long serialVersionUID = 919286545866124006L;
+
+	// 用于排序的比较器，默认为空，即使用key值进行自然排序
+	private final Comparator<? super K> comparator;
+
+	// 红黑树的根节点
+    private transient Entry<K,V> root;
+
+	// 红黑树中Entry节点的数量，即Map中键值对的数量
+    private transient int size = 0;
+
+	// 红黑树结构的调整次数
+    private transient int modCount = 0;
+
+	// 红黑树节点的颜色，布尔值表示
+	private static final boolean RED   = false;
+    private static final boolean BLACK = true;
+
+	// 第一次请求视图时初始化，视图是无状态的，因此没有必要创建多个视图
+	private transient EntrySet entrySet;
+    private transient KeySet<K> navigableKeySet;
+    private transient NavigableMap<K,V> descendingMap;
+```
+
+
+
+#### 5.3.2 构造器
+
+```java
+	// 空参构造器，默认使用key值进行自然排序
+	public TreeMap() {
+        comparator = null;
+    }
+
+	// 构造一个空的TreeMap，按照指定比较器进行排序
+	public TreeMap(Comparator<? super K> comparator) {
+        this.comparator = comparator;
+    }
+	
+	// 构造一个新的包含指定Map中键值对映射的TreeMap，使用key值进行自然排序
+	public TreeMap(Map<? extends K, ? extends V> m) {
+        comparator = null;
+        putAll(m);
+    }
+
+	// 构造一个包含相同映射，并使用与SortedMap相同比较器的TreeMap
+	public TreeMap(SortedMap<K, ? extends V> m) {
+        comparator = m.comparator();
+        try {
+            buildFromSorted(m.size(), m.entrySet().iterator(), null, null);
+        } catch (java.io.IOException | ClassNotFoundException cannotHappen) {
+        }
+    }
+```
+
+
+
+#### 5.3.3 内部类
+
+```java
+	// 节点（1个）
+	(1) static final class Entry<K,V> implements Map.Entry<K,V>
+	
+	// 视图（3个）
+	(2) static final class KeySet<E> extends AbstractSet<E> implements NavigableSet<E>
+	(3) class Values extends AbstractCollection<V>
+	(4) class EntrySet extends AbstractSet<Map.Entry<K,V>>
+	
+    // 迭代器（5个）
+	(5) final class KeyIterator extends PrivateEntryIterator<K>
+    (6) final class DescendingKeyIterator extends PrivateEntryIterator<K>
+    (7) final class ValueIterator extends PrivateEntryIterator<V>
+    (8) abstract class PrivateEntryIterator<T> implements Iterator<T>
+    (9) final class EntryIterator extends PrivateEntryIterator<Map.Entry<K,V>>
+        
+    // 分割迭代器：用于高效并行遍历（5个）
+    (10) static class TreeMapSpliterator<K,V>
+    (11) static final class KeySpliterator<K,V> extends TreeMapSpliterator<K,V>
+        implements Spliterator<K>
+    (12) static final class DescendingKeySpliterator<K,V> extends TreeMapSpliterator<K,V>
+        implements Spliterator<K>
+    (13) static final class ValueSpliterator<K,V> extends TreeMapSpliterator<K,V>
+        implements Spliterator<V>
+    (14) static final class EntrySpliterator<K,V> extends TreeMapSpliterator<K,V>
+        implements Spliterator<Map.Entry<K,V>>
+    	
+    // 与不支持NavigableMap的先前版本的TreeMap进行序列化兼容（4个）
+    (15) abstract static class NavigableSubMap<K,V> extends AbstractMap<K,V>
+        implements NavigableMap<K,V>, java.io.Serializable
+    (16) static final class AscendingSubMap<K,V> extends NavigableSubMap<K,V>
+    (17) static final class DescendingSubMap<K,V>  extends NavigableSubMap<K,V>
+    (18) private class SubMap extends AbstractMap<K,V>
+        implements SortedMap<K,V>, java.io.Serializable
+```
+
+TreeMap 共有18个内部类，其中 `Entry` 静态内部类是最重要的。下面分别给出它的结构：
+
+```java
+	// 红黑树节点，实现了Map.Entry接口中的方法，如equals和hashCode方法
+	static final class Entry<K,V> implements Map.Entry<K,V> {
+        K key;		// key
+        V value;	// value
+        Entry<K,V> left;	// 左孩子节点
+        Entry<K,V> right;	// 右孩子节点
+        Entry<K,V> parent;	// 父亲节点
+        boolean color = BLACK;	// 节点颜色，默认黑色
+
+        // ...
+    }
+```
+
+
+
+#### 5.3.4 方法
+
+##### (1) put() 方法
+
+```java
+	// 将键值对加入TreeMap中，若已包含该键的映射，则替换并返回旧值
+	public V put(K key, V value) {
+        Entry<K,V> t = root;
+        // 如果红黑树根节点为null，则新建一个节点作为根节点
+        if (t == null) {
+            compare(key, key); // type (and possibly null) check
+
+            root = new Entry<>(key, value, null);
+            size = 1;
+            modCount++;
+            return null;
+        }
+        int cmp;		// 用来进行查找时的比较
+        Entry<K,V> parent;	// new Entry时的父节点参数
+        // 分两种情况进行查找：自然排序和自定义排序
+        Comparator<? super K> cpr = comparator;
+        if (cpr != null) {
+            do {	// 类似于二叉查找树的查找操作，下同
+                parent = t;
+                cmp = cpr.compare(key, t.key);
+                if (cmp < 0)
+                    t = t.left;
+                else if (cmp > 0)
+                    t = t.right;
+                else
+                    return t.setValue(value);	// 若key已存在，则新值覆盖旧值
+            } while (t != null);
+        }
+        else {
+            if (key == null)	// 默认排序时，key值不能为空
+                throw new NullPointerException();
+            @SuppressWarnings("unchecked")
+            Comparable<? super K> k = (Comparable<? super K>) key;
+            do {
+                parent = t;
+                cmp = k.compareTo(t.key);
+                if (cmp < 0)
+                    t = t.left;
+                else if (cmp > 0)
+                    t = t.right;
+                else
+                    return t.setValue(value);
+            } while (t != null);
+        }
+        // 找到插入的父节点，生成当前节点，然后根据大小放在左节点还是右节点
+        Entry<K,V> e = new Entry<>(key, value, parent);
+        if (cmp < 0)
+            parent.left = e;
+        else
+            parent.right = e;
+        // 节点插入后对红黑树进行平衡处理
+        fixAfterInsertion(e);
+        size++;
+        modCount++;
+        return null;
+    }
+
+	// 节点插入后对红黑树进行平衡处理
+	private void fixAfterInsertion(Entry<K,V> x) {
+        x.color = RED;	// 新插入的节点为红色
+		
+        // 父节点为黑色时，并不需要进行树结构调整，只有当父节点为红色时，才需要调整
+        while (x != null && x != root && x.parent.color == RED) {
+            // 父节点是左节点，对应上表中的情况1和情况2
+            if (parentOf(x) == leftOf(parentOf(parentOf(x)))) {
+                Entry<K,V> y = rightOf(parentOf(parentOf(x)));	// 叔父结点
+                if (colorOf(y) == RED) {
+                    // 如果父节点和叔父节点都为红色，通过“变色”即可调整
+                	// 此时父节点和叔父节点都设置为黑色，祖父节点设置为红色，并继续向上调整
+                    setColor(parentOf(x), BLACK);
+                    setColor(y, BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    x = parentOf(parentOf(x));
+                } else {
+                    // 如果插入节点是右子节点，则先进行父节点左旋
+                    if (x == rightOf(parentOf(x))) {
+                        x = parentOf(x);
+                        rotateLeft(x);
+                    }
+                    // 设置父节点和祖父节点颜色
+                    setColor(parentOf(x), BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    // 进行祖父节点右旋，这里“变色”和“旋转”没有严格的先后顺序
+                    rotateRight(parentOf(parentOf(x)));
+                }
+            } else {
+                // 父节点是右节点，对应上表中的情况3和情况4
+                Entry<K,V> y = leftOf(parentOf(parentOf(x)));
+                if (colorOf(y) == RED) {
+                    // 如果父节点和叔父节点都为红色，通过“变色”即可调整
+                    setColor(parentOf(x), BLACK);
+                    setColor(y, BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    x = parentOf(parentOf(x));
+                } else {
+                    // 如果插入节点是左子节点，则先进行父节点右旋
+                    if (x == leftOf(parentOf(x))) {
+                        x = parentOf(x);
+                        rotateRight(x);
+                    }
+                    // 设置父节点和祖父节点颜色
+                    setColor(parentOf(x), BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    // 进行祖父节点左旋，这里“变色”和“旋转”没有严格的先后顺序
+                    rotateLeft(parentOf(parentOf(x)));
+                }
+            }
+        }
+        // 最后把根节点变为黑色，前面变色修改可能会导致根节点变成红色，根节点变色对全局没有任何影响
+        root.color = BLACK;
+    }
+```
+
+
+
+##### (2) get() 方法
+
+```java
+	// 返回指定键所映射的值，若不存该映射，返回null
+	public V get(Object key) {
+        Entry<K,V> p = getEntry(key);
+        return (p==null ? null : p.value);
+    }
+
+	// 类似于二叉查找树的查找操作，默认使用key值的自然排序
+	final Entry<K,V> getEntry(Object key) {
+        // 比较器不为null，则使用自定义排序进行查找，代码类似
+        if (comparator != null)
+            return getEntryUsingComparator(key);
+        if (key == null)
+            throw new NullPointerException();
+        @SuppressWarnings("unchecked")
+        Comparable<? super K> k = (Comparable<? super K>) key;
+        Entry<K,V> p = root;
+        while (p != null) {
+            int cmp = k.compareTo(p.key);
+            if (cmp < 0)	// key值小于根节点key值，在左子树上查找
+                p = p.left;
+            else if (cmp > 0)	// key值大于根节点key值，在右子树上查找
+                p = p.right;
+            else		// key值等于根节点key值，查找成功
+                return p;
+        }
+        return null;	// 查找失败
+    }
+```
+
+
+
+##### (3) remove() 方法
+
+```java
+	// 删除并返回指定键所映射的值，若不存该映射，返回null
+	public V remove(Object key) {
+        Entry<K,V> p = getEntry(key);
+        if (p == null)
+            return null;
+
+        V oldValue = p.value;
+        deleteEntry(p);
+        return oldValue;
+    }
+
+	// 二叉查找树的删除过程
+	private void deleteEntry(Entry<K,V> p) {
+        modCount++;
+        size--;
+
+        // 1.待删除节点有两个孩子，通过successor(p)找到前驱或者后继（继任者），
+        // 将继任者的值复制到节点p中，并让p指向继任者，准备进行删除
+        if (p.left != null && p.right != null) {
+            Entry<K,V> s = successor(p);
+            p.key = s.key;
+            p.value = s.value;
+            p = s;
+        } 
+
+        Entry<K,V> replacement = (p.left != null ? p.left : p.right);
+
+        if (replacement != null) {
+            // 2.待删除节点只有左孩子（或右孩子），孩子节点替代删除节点位置
+            replacement.parent = p.parent;
+            if (p.parent == null)
+                root = replacement;
+            else if (p == p.parent.left)
+                p.parent.left  = replacement;
+            else
+                p.parent.right = replacement;
+
+            // 断开待删除节点p，以便fixAfterDeletion进行平衡处理
+            p.left = p.right = p.parent = null;
+
+            // p如果是红色，那么其子节点replacement必然为红色，删除后并不影响红黑树的结构
+            // p如果是黑色，那么其父节点以及子节点都可能是红色，删除后红色相连，需要进行平衡处理
+            if (p.color == BLACK)
+                fixAfterDeletion(replacement);
+        } else if (p.parent == null) { // 树中只有唯一的根节点
+            root = null;
+        } else {	// 3.待删除节点是叶子节点，直接删除
+            // p如果是黑色，删除后必然违反性质5，需要进行平衡处理
+            if (p.color == BLACK)
+                fixAfterDeletion(p);
+
+            if (p.parent != null) {
+                if (p == p.parent.left)
+                    p.parent.left = null;
+                else if (p == p.parent.right)
+                    p.parent.right = null;
+                p.parent = null;
+            }
+        }
+    }
+
+	// 节点删除后对红黑树进行平衡处理
+	private void fixAfterDeletion(Entry<K,V> x) {
+        while (x != root && colorOf(x) == BLACK) {
+            if (x == leftOf(parentOf(x))) {
+                Entry<K,V> sib = rightOf(parentOf(x));
+
+                // 场景1：节点x是黑色，兄弟节点sib是红色
+                if (colorOf(sib) == RED) {
+                    setColor(sib, BLACK);		// sib节点由红变黑
+                    setColor(parentOf(x), RED);	// 父节点由黑变红
+                    rotateLeft(parentOf(x));	// 父节点左旋
+                    sib = rightOf(parentOf(x));	// sib重新赋值，指向x的兄弟节点
+                }
+
+                // 场景2：节点x、兄弟节点sib、sib的左右子节点都是黑色
+                if (colorOf(leftOf(sib))  == BLACK &&
+                    colorOf(rightOf(sib)) == BLACK) {
+                    setColor(sib, RED);			// sib节点由黑变红
+                    x = parentOf(x);			// x指向当前x的父节点
+                } else {
+                    // 场景3：节点x、兄弟节点sib、sib的右子节点都为黑色，sib的左子节点为红色
+                    if (colorOf(rightOf(sib)) == BLACK) {
+                        setColor(leftOf(sib), BLACK);	// sib左子节点由红变黑
+                        setColor(sib, RED);				// sib节点由黑变红
+                        rotateRight(sib);				// sib节点右旋
+                        sib = rightOf(parentOf(x));		// sib重新赋值，指向x的兄弟节点
+                    }
+                    // 场景4：节点x、兄弟节点sib都为黑色，sib的左右子节点都为红色
+                    // 或者右子节点为红色、左子节点为黑色
+                    setColor(sib, colorOf(parentOf(x)));// sib节点设置成和x的父节点相同的颜色
+                    setColor(parentOf(x), BLACK);		// 父节点设置为黑色
+                    setColor(rightOf(sib), BLACK);		// sib右子节点设置为黑色
+                    rotateLeft(parentOf(x));			// 父节点左旋
+                    x = root;	// 将x赋值为root
+                }
+            } else { // 对称处理
+                Entry<K,V> sib = leftOf(parentOf(x));
+                // ...
+            }
+        }
+
+        setColor(x, BLACK);
+    }
+```
+
 
 
 ## 参考
@@ -1638,3 +2167,6 @@ public class LRUCache {
 2. [Map 源码分析: HashMap (下)](https://blog.csdn.net/qq_41655934/article/details/89429663)
 3. [Java 8系列之重新认识HashMap](https://zhuanlan.zhihu.com/p/21673805)
 4. [LinkedHashMap 源码详细分析](https://www.imooc.com/article/22931)
+5. [红黑树在线操作演示](https://www.cs.usfca.edu/~galles/visualization/RedBlack.html)
+6. [关于红黑树(R-B tree)原理，看这篇如何](https://www.cnblogs.com/LiaHon/p/11203229.html)
+7. [TreeMap原理实现及常用方法](https://www.cnblogs.com/LiaHon/p/11221634.html)
