@@ -106,7 +106,7 @@ public class ThreadLocal<T> {
 	}
 ```
 
-其实 `ThreadLocalMap` 已经考虑了这种情况，在调用 `set()`、`get()`、`remove()` 方法的时候，会找一些时机清理掉 key 为 null 的 Entry，但是这些清理不是必须发生的。因此在使用完 `ThreadLocal`后，最好还是手动调用`remove()`方法，防止发生内存泄漏。
+其实 `ThreadLocalMap` 已经考虑了这种情况，在调用 `set()`、`get()`、`remove()` 方法的时候，会找一些时机清理掉 key 为 null 的 Entry，但是这些清理不是必须发生的。因此在使用完 `ThreadLocal`后，最好还是手动在 try-finally 块中调用`remove()`方法，防止发生内存泄漏。
 
 
 

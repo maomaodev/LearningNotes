@@ -94,7 +94,7 @@ public interface Converter<F, T> {
 ```
 
 ```java
-// TODO 将数字字符串转换为整数类型
+// 将数字字符串转换为整数类型
 Converter<String, Integer> converter = (from) -> Integer.valueOf(from);
 Integer converted = converter.convert("123");
 System.out.println(converted.getClass()); //class java.lang.Integer
@@ -127,7 +127,7 @@ consumer.accept("abcd");	// abcd
 
 ```java
 BiPredicate<String, String> bp1 = (x, y) -> x.equals(y);
-BiPredicate<String, String> bp2 = String::equals;
+BiPredicate<String, String> bp2 = String::equals;	// x是String类型的
 ```
 
 ### 构造函数引用
@@ -191,7 +191,7 @@ Converter<Integer, String> stringConverter =
 stringConverter.convert(2);     // 3
 ```
 
-不过这里的 num 必须不可被后面的代码修改（即隐性的具有 final 的语义），例如下面的就无法编译：
+不过这里的 num 必须不可被后面的代码修改（**即隐性的具有 final 的语义**），例如下面的就无法编译：
 
 ```java
 int num = 1;

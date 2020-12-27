@@ -701,7 +701,7 @@ Spring Data 是 Spring 提供的一个用于简化数据库访问、支持云服
 
 ## 4. 视图技术
 
-
+前后端分离的大背景下，Thymeleaf 很少使用。
 
 
 
@@ -785,24 +785,76 @@ Spring Data 是 Spring 提供的一个用于简化数据库访问、支持云服
 1. **整合 Servlet**
 
    ```java
+   // 映射“/annotationServlet”请求的Servlet类
+   @WebServlet("/annotationServlet")
+   public class MyServlet extends HttpServlet {
+       @Override
+       protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+           this.doPost(req, resp);
+       }
    
+       @Override
+       protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+           resp.getWriter().write("hello MyServlet");
+       }
+   }
    ```
 
 2. **整合 Filter**
 
    ```java
+   // 映射“/antionLogin”和“antionMyFilter”请求的Filter类
+   @WebFilter(value = {"/antionLogin", "/antionMyFilter"})
+   public class MyFilter implements Filter {
+       @Override
+       public void init(FilterConfig filterConfig) {
+       }
    
+       @Override
+       public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+           System.out.println("hello MyFilter");
+           filterChain.doFilter(servletRequest, servletResponse);
+       }
+   
+       @Override
+       public void destroy() {
+       }
+   }
    ```
 
 3. **整合 Listener**
 
    ```java
+   // Servlet容器提供了很多Listener接口，例如ServletContextListener、ServletRequestListener、
+   // HttpSessionListener等，在自定义Listener类时根据自身需求选择实现对应接口即可
+   @WebListener
+   public class MyListener implements ServletContextListener {
+       @Override
+       public void contextInitialized(ServletContextEvent sce) {
+           System.out.println("contextInitialized...");
+       }
    
+       @Override
+       public void contextDestroyed(ServletContextEvent sce) {
+           System.out.println("contextDestroyed...");
+       }
+   }
    ```
 
-4. 
 
+4. **开启基于注解方式的Servlet组件扫描支持**
 
+   ```java
+   @ServletComponentScan   // 开启基于注解方式的Servlet组件扫描支持
+   @SpringBootApplication
+   public class Chapter5Application {
+       public static void main(String[] args) {
+           SpringApplication.run(Chapter5Application.class, args);
+       }
+   }
+   ```
+
+   
 
 ### 5.3 Spring Boot 应用打包和部署
 
@@ -1357,7 +1409,7 @@ RabbitMQ 消息中间件针对不同的服务需求，提供了多种工作模�
 
 RabbitMQ 安装包依赖于 Erlang 语言包的支持，所以需要先安装 Erlang 语言包，具体可参考 [Windows下RabbitMQ安装及配置](https://blog.csdn.net/zhm3023/article/details/82217222)。RabbitMQ 默认提供了两个端口：**5672 端口用作服务端口，15672 端口用作可视化管理端口**，安装后可以在浏览器上访问 `localhost:15672` 查看 RabbitMQ，默认提供的用户名和密码都是 guest。
 
-Spring Boot 整合 RabbitMQ 中间件实现消息服务，主要围绕 3 个部分工作进行展开：**定制中间件、消息发送者发送消息、消息消费者接收消息**，其中，定制中间件比较麻烦，必须预先定制。整合方式有 3 种：**基于API、基于配置类、基于注解**，下面仅使用基于注解的方式进行整合：
+Spring Boot 整合 RabbitMQ 中间件实现消息服务，主要围绕 3 个部分工作进行展开：**定制中间件、消息发送者发送消息、消息消费者接收消息**，其中，定制中间件比较麻烦，必须预先定制。整合方式有 3 种：**基于API、基于配置类、基于注解**，下面仅使用基于配置类和注解的方式进行整合：
 
 1. **引入 RabbitMQ 启动器依赖**
 
@@ -1409,10 +1461,62 @@ Spring Boot 整合 RabbitMQ 中间件实现消息服务，主要围绕 3 个部�
        public MessageConverter messageConverter(){
            return new Jackson2JsonMessageConverter();
        }
+       
+       // 基于配置类的方式，定制消息组件，如果使用基于注解的方式，删除以下全部代码
+       // 1.定义fanout类型的交换器
+       @Bean
+       public Exchange fanout_exchange(){
+           return ExchangeBuilder.fanoutExchange("fanout_exchange").build();
+       }
+   
+       // 2.定义两个不同名称的消息队列
+       @Bean
+       public Queue fanout_queue_email(){
+           return new Queue("fanout_queue_email");
+       }
+       @Bean
+       public Queue fanout_queue_sms(){
+           return new Queue("fanout_queue_sms");
+       }
+   
+       // 3.将两个不同名称的消息队列与交换器进行绑定
+       @Bean
+       public Binding bindingEmail(){
+           return BindingBuilder.bind(fanout_queue_email())
+                   .to(fanout_exchange()).with("").noargs();
+       }
+       @Bean
+       public Binding bindingSms(){
+           return BindingBuilder.bind(fanout_queue_sms())
+                   .to(fanout_exchange()).with("").noargs();
+       }
    }
    ```
 
-5. **定制消息组件和消息消费者**
+5. **基于配置类，定制消息组件和消息消费者**
+
+   ```java
+   @Service
+   public class RabbitMQService {
+       // Publish/Subscribe 工作模式接收、处理邮件业务
+       @RabbitListener(queues = "fanout_queue_email")
+       public void psubConsumerEmail(Message message){
+           byte[] body = message.getBody();
+           String s = new String(body);
+           System.out.println("邮件业务接收到消息：" + s);
+       }
+   
+       // Publish/Subscribe 工作模式接收、处理短信业务
+       @RabbitListener(queues = "fanout_queue_sms")
+       public void psubConsumerSms(Message message){
+           byte[] body = message.getBody();
+           String s = new String(body);
+           System.out.println("短信业务接收到消息：" + s);
+       }
+   }
+   ```
+   
+6. **基于注解，定制消息组件和消息消费者（与 5. 二选一）**
 
    ```java
    @Service
@@ -1468,7 +1572,7 @@ Spring Boot 整合 RabbitMQ 中间件实现消息服务，主要围绕 3 个部�
    }
    ```
 
-6. **消息发送者发送消息**
+7. **消息发送者发送消息**
 
    ```java
    @RunWith(SpringRunner.class)
@@ -1726,3 +1830,7 @@ Web 应用开发中，大多数情况都是通过同步方式完成数据交互�
    ```
 
    
+
+## 参考
+
+1. 《Spring Boot 企业级开发教程》
