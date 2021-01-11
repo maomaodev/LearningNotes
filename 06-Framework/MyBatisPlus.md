@@ -318,14 +318,14 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     @Override   // 插入时的填充策略
     public void insertFill(MetaObject metaObject) {
         log.info("start insert fill ...");
-        this.setFieldValByName("gmtCreate", LocalDateTime.now(), metaObject);
-        this.setFieldValByName("gmtModified", LocalDateTime.now(), metaObject);
+        this.setFieldValByName("gmtCreate", new Date(), metaObject);
+        this.setFieldValByName("gmtModified", new Date(), metaObject);
     }
 
     @Override   // 更新时的填充策略
     public void updateFill(MetaObject metaObject) {
         log.info("start update fill ...");
-        this.setFieldValByName("gmtModified", LocalDateTime.now(), metaObject);
+        this.setFieldValByName("gmtModified", new Date(), metaObject);
     }
 }
 ```

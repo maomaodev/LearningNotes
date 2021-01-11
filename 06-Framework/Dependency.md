@@ -474,11 +474,169 @@ public class InterceptorConfig implements WebMvcConfigurer {
 
 
 
-## 4. fastjson
+## 4. json
 
 ### 4.1 简介
 
-fastjson 是阿里巴巴的开源 JSON 解析库，它可以解析 JSON 格式的字符串，支持将 Java Bean 序列化为 JSON 字符串，也可以从 JSON 字符串反序列化到 JavaBean。fastjson 依赖引入如下：
+JSON（JavaScript Object Notation）是一种轻量级的数据交换格式，易于人阅读和编写，同时也易于机器解析和生成。 JSON建构于两种结构：名称/值对的集合（相当于 Java 中的 Map<String, Object>）、值的有序列表（相当于 Java 中的 List），并具有以下形式：
+
+* 对象是一个无序的“名称/值对”集合。一个对象以 `{`左括号 开始， `}`右括号 结束，每个“名称”后跟一个 `:`冒号 ，“名称/值对”之间使用 `,`逗号 分隔
+* 数组是值（value）的有序集合。一个数组以 `[`左中括号 开始， `]`右中括号 结束，值之间使用 `,`逗号 分隔
+* 值（value）可以是双引号括起来的字符串、数值、`true`、`false`、 `null`、对象或数组，这些结构可以嵌套
+
+参考：[json 中文官网](http://www.json.org/json-zh.html)
+
+### 4.2 jakson
+
+#### 4.2.1 简介
+
+Spring Boot 内置了 jackson 来完成 JSON 的序列化和反序列化操作，依赖由 `spring-boot-starter-web` 引入，因此在 Spring Boot 中不需要引入依赖。jackson 使用 `ObjectMapper` 类将  Java Bean 序列化成 JSON 字符串，或者将 JSON 字符串反序列化成  Java Bean。
+
+参考：[默认转换工具Jackson](https://blog.csdn.net/u013089490/article/details/83585794)、[利用Jackson封装常用JsonUtil工具类](https://www.cnblogs.com/christopherchan/p/11071098.html)
+
+#### 4.2.2 常见注解
+
+1. **@JsonProperty**：作用在属性上，用来为 JSON Key 指定一个别名
+
+2. **@JsonIgnore**：作用在属性上，用来忽略此属性
+
+3. **@JsonFormat**：作用在属性上，用于日期格式化
+
+   ```java
+   @JsonFormat(pattern = "yyyy-MM-dd HH-mm-ss")
+   private Date date;
+   ```
+
+   
+
+#### 4.2.3 工具类封装
+
+```java
+/**
+ * json 工具类
+ */
+@Slf4j
+public class JsonUtils {
+    private static ObjectMapper objectMapper = new ObjectMapper();
+    private static final String STANDARD_FORMAT = "yyyy-MM-dd HH:mm:ss";
+
+    static {
+        // 对象的所有字段全部列入
+        objectMapper.setSerializationInclusion(JsonInclude.Include.ALWAYS);
+        // 取消默认转换timestamps形式
+        objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+        // 所有的日期格式都统一为以下的样式，即yyyy-MM-dd HH:mm:ss
+        objectMapper.setDateFormat(new SimpleDateFormat(STANDARD_FORMAT));
+        // 忽略空Bean转json的错误
+        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        // 忽略在json字符串中存在，但是在java对象中不存在对应属性的情况，防止错误
+        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    }
+
+    /**
+     * 对象转Json格式字符串
+     *
+     * @param obj 对象
+     * @return Json格式字符串
+     */
+    public static <T> String obj2String(T obj) {
+        if (obj == null) {
+            return null;
+        }
+        try {
+            return obj instanceof String ? (String) obj : objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            log.warn("Parse Object to String Error : {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 对象转Json格式字符串(格式化的Json字符串)
+     *
+     * @param obj 对象
+     * @return 美化的Json格式字符串
+     */
+    public static <T> String obj2StringPretty(T obj) {
+        if (obj == null) {
+            return null;
+        }
+        try {
+            return obj instanceof String ? (String) obj : objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            log.warn("Parse Object to String Error : {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 字符串转换为自定义对象
+     *
+     * @param str   要转换的字符串
+     * @param clazz 自定义对象的class对象
+     * @return 自定义对象
+     */
+    public static <T> T string2Obj(String str, Class<T> clazz) {
+        if (StringUtils.isEmpty(str) || clazz == null) {
+            return null;
+        }
+        try {
+            return clazz.equals(String.class) ? (T) str : objectMapper.readValue(str, clazz);
+        } catch (Exception e) {
+            log.warn("Parse String to Object Error : {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 字符串转换为集合对象
+     *
+     * @param str           要转换的字符串
+     * @param typeReference 接收类型泛型
+     * @return 集合对象
+     */
+    public static <T> T string2Obj(String str, TypeReference<T> typeReference) {
+        if (StringUtils.isEmpty(str) || typeReference == null) {
+            return null;
+        }
+        try {
+            return (T) (typeReference.getType().equals(String.class) ? str : objectMapper.readValue(str, typeReference));
+        } catch (IOException e) {
+            log.warn("Parse String to Collection Object Error", e);
+            return null;
+        }
+    }
+
+    /**
+     * 字符串转换为集合对象
+     *
+     * @param str             要转换的字符串
+     * @param collectionClazz 集合的Class对象
+     * @param elementClazzes  元素的Class对象
+     * @return 集合对象
+     */
+    public static <T> T string2Obj(String str, Class<?> collectionClazz, Class<?>... elementClazzes) {
+        if (StringUtils.isEmpty(str) || collectionClazz == null || elementClazzes == null) {
+            return null;
+        }
+        JavaType javaType = objectMapper.getTypeFactory().constructParametricType(collectionClazz, elementClazzes);
+        try {
+            return objectMapper.readValue(str, javaType);
+        } catch (IOException e) {
+            log.warn("Parse String to Collection Object Error : {}" + e.getMessage());
+            return null;
+        }
+    }
+}
+```
+
+
+
+### 4.3 fastjson
+
+#### 4.3.1 简介
+
+fastjson 是阿里巴巴的开源 JSON 解析库，它可以解析 JSON 格式的字符串，支持将 Java Bean 序列化为 JSON 字符串，也可以从 JSON 字符串反序列化到 JavaBean。fastjson 具有速度快、使用简单、功能完备等优点，依赖引入如下：
 
 ```xml
 <dependency>
@@ -490,9 +648,30 @@ fastjson 是阿里巴巴的开源 JSON 解析库，它可以解析 JSON 格式�
 
 参考：[github-fastjson](https://github.com/alibaba/fastjson)
 
-### 4.2 常见注解
+#### 4.3.2 常见 API
 
+```java
+// com.alibaba.fastjson.JSON 类的常用静态方法
 
+// 将 JavaBean 序列化为 JSON 字符串（主要）
+public static final String toJSONString(Object object);
+// 将 JavaBean 序列化为带格式的 JSON 字符串 
+public static final String toJSONString(Object object, boolean prettyFormat);
+// 将 JavaBean 序列化为 JSONObject 或 JSONArray；JSONArray 相当于 List，JSONObject 相当于 Map
+public static final Object toJSON(Object javaObject); 
+
+// 把 JSON 字符串反序列化为JavaBean（主要）
+public static final <T> T parseObject(String text, Class<T> clazz);
+// 把 JSON 字符串反序列化为JavaBean 集合 
+public static final <T> List<T> parseArray(String text, Class<T> clazz);
+
+// 把 JSON 字符串反序列化为 JSONObject 或 JSONArray
+public static final Object parse(String text);
+// 把 JSON 字符串反序列化为 JSONObject
+public static final JSONObject parseObject(String text);
+// 把 JSON 字符串反序列化为 JSONArray
+public static final JSONArray parseArray(String text);
+```
 
 
 

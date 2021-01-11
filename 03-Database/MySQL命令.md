@@ -1,31 +1,3 @@
-<!-- TOC -->
-
-- [基本操作](#基本操作)
-- [数据库操作](#数据库操作)
-- [表的操作](#表的操作)
-- [数据操作](#数据操作)
-- [字符集编码](#字符集编码)
-- [数据类型(列类型)](#数据类型列类型)
-- [列属性(列约束)](#列属性列约束)
-- [建表规范](#建表规范)
-- [SELECT](#select)
-- [UNION](#union)
-- [子查询](#子查询)
-- [连接查询(join)](#连接查询join)
-- [TRUNCATE](#truncate)
-- [备份与还原](#备份与还原)
-- [视图](#视图)
-- [事务(transaction)](#事务transaction)
-- [锁表](#锁表)
-- [触发器](#触发器)
-- [SQL编程](#sql编程)
-- [存储过程](#存储过程)
-- [用户和权限管理](#用户和权限管理)
-- [表维护](#表维护)
-- [杂项](#杂项)
-
-<!-- /TOC -->
-
 ### 基本操作
 
 ```mysql
@@ -36,8 +8,16 @@
     sc create mysql binPath= mysqld_bin_path(注意：等号与值之间有空格)
 -- 连接与断开服务器
 mysql -h 地址 -P 端口 -u 用户名 -p 密码
-SHOW PROCESSLIST -- 显示哪些线程正在运行
-SHOW VARIABLES -- 显示系统变量信息
+-- 显示哪些线程正在运行
+SHOW PROCESSLIST
+-- 显示系统变量信息
+SHOW VARIABLES
+	-- 查询日志文件的位置
+	show variables like 'general_log_file';
+	-- 错误日志文件的位置
+	show variables like 'log_error';
+	-- 慢查询日志文件的位置
+	show variables like 'slow_query_log_file';
 ```
 
 ### 数据库操作
