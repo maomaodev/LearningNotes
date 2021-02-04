@@ -88,7 +88,7 @@ Spring Boot 并没有重复造轮子，它只是将目前各家公司开发的�
 | 批量任务     | 无            | Spring Cloud Task            |
 
 * Dubbo 的定位是一款 RPC 框架，Spring Cloud 的目标是微服务架构下的一站式解决方案。
-* **Spring Cloud 抛弃了 Dubbo 的 RPC 通信，采用的是基于 HTTP 的 REST 方式**。严格来说，者两种凡是各有优劣。虽然 Spring Cloud 牺牲了服务调用的性能，但是也避免了原生 RPC 带来的问题，且 REST 比 RPC 更为灵活，不存在代码级别的强依赖，这在强调快速演化的微服务环境下，显然更合适。
+* **Spring Cloud 抛弃了 Dubbo 的 RPC 通信，采用的是基于 HTTP 的 REST 方式**。严格来说，两者各有优劣。虽然 Spring Cloud 牺牲了服务调用的性能，但是也避免了原生 RPC 带来的问题，且 REST 比 RPC 更为灵活，不存在代码级别的强依赖，这在强调快速演化的微服务环境下，显然更合适。
 
 
 

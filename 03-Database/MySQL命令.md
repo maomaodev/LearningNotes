@@ -458,7 +458,7 @@ h. DISTINCT, ALL 选项
     all, some 可以配合其他运算符一起使用。
 ```
 
-### 连接查询(join)
+### 连接查询
 
 ```mysql
 /* 连接查询(join) */ 
@@ -561,7 +561,27 @@ CREATE [OR REPLACE] [ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE}] VIEW view_name
     UNDEFINED   未定义(默认)，指的是MySQL自主去选择相应的算法。
 ```
 
-### 事务(transaction) 
+### 索引
+
+```mysql
+-- 创建索引
+CREATE [UNIQUE|FULLTEXT|SPATIAL] INDEX index_name 
+ON table_name(index_column_name,...)
+index_col_name : column_name[(length)][ASC | DESC]
+-- 查看索引
+SHOW INDEX FROM table_name;
+-- 删除索引
+DROP INDEX index_name ON table_name;
+-- 添加索引
+ALTER TABLE table_name ADD PRIMARY KEY(column_list); -- 添加一个主键
+ALTER TABLE table_name ADD UNIQUE index_name(column_list);	-- 添加唯一索引
+ALTER TABLE table_name ADD INDEX index_name(column_list); -- 添加普通索引
+ALTER TABLE table_name ADD FULLTEXT index_name(column_list); -- 添加全文索引
+```
+
+
+
+### 事务
 
 ```mysql
 事务是指逻辑上的一组操作，组成这组操作的各个单元，要不全成功要不全失败。
@@ -609,7 +629,9 @@ CREATE [OR REPLACE] [ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE}] VIEW view_name
     - 也可以关闭自动提交来开启事务。但与START TRANSACTION不同的是，
         SET autocommit是永久改变服务器的设置，直到下次再次修改该设置。(针对当前连接)
         而START TRANSACTION记录开启前的状态，而一旦事务提交或回滚后就需要再次开启事务。(针对当前事务)
-
+-- 隔离级别
+	SELECT @@tx_isolation -- 查看事务隔离级别
+	SET [SESSION | GLOBAL] TRANSACTION ISOLATION LEVEL {READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ | SERIALIZABLE} -- 修改事务隔离级别
 ```
 
 ### 锁表
