@@ -597,7 +597,7 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
    在共享方式下，获取与释放资源的流程如下：
 
    * **当一个线程调用 acquireShared() 获取共享资源时，会首先使用 trγacquireShared() 尝试获取资源**， 具体是设置状态变量 state 的值，成功则直接返回，失败则将当前线程封装为类型为Node.SHARED 的 Node 节点后插入到 AQS 阻塞队列的尾部，并使用 LockSupport.park(this) 方法挂起自己。
-   * **当一个线程调用 releaseShared() 时，会首先使用 tryReleaseShared() 尝试释放资源**，这里是设置状态变量state 的值，然后使用 LockSupport.unpark(thread) 激活 AQS 队列里面被阻塞的一个线程。被激活的线程则使用 trγacquireShared() 查看当前状态变量 state 的值是否能满足自己的需要，满足则该线程被撤活，然后继续向下运行，否则还是会被放入 AQS 队列并被挂起。
+   * **当一个线程调用 releaseShared() 时，会首先使用 tryReleaseShared() 尝试释放资源**，这里是设置状态变量 state 的值，然后使用 LockSupport.unpark(thread) 激活 AQS 队列里面被阻塞的一个线程。被激活的线程则使用 trγacquireShared() 查看当前状态变量 state 的值是否能满足自己的需要，满足则该线程被激活，然后继续向下运行，否则还是会被放入 AQS 队列并被挂起。
 
 最后说明一下，acquire() 和 acquireInterruptibly()、acquireShared() 和 acquireSharedInterruptibly() 之间的区别：
 
@@ -1096,20 +1096,392 @@ class MyRunnable implements Runnable {
 
 ## 6. 线程同步器
 
-### 6.1 信号量 Semaphore
+### 6.1 倒计时器 CountDownLatch
+
+CountDownLatch 是一个同步工具类，它**允许一个或多个线程一直等待，直到其他线程的操作执行完后再执行**。一个典型的应用场景就是启动一个服务时，主线程需要等待多个组件加载完毕，之后再继续执行。其作用类似于 join() 方法，但是它比 join 方法更加灵活，两者的区别主要是：
+
+* 调用子线程的 join() 方法后，该线程会一直被阻塞**直到子线程运行完毕**；而 CountDownLatch 使用计数器允许子线程**运行完毕或在运行中**递减计数，即它可以在子线程运行的**任何时候**让 await() 方法返回，而不一定必须等到线程结束。
+* 使用**线程池**来管理线程时一般都是直接添加 Runnable 到线程池，这时就没办法再调用线程的 join() 方法了。
+
+```java
+public class CountDownLatchDemo {
+    // 创建一个计数器为2的CountDownLatch实例
+    private static CountDownLatch countDownLatch = new CountDownLatch(2);
+
+    public static void main(String[] args) throws InterruptedException {
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        // 将线程A加入线程池
+        executorService.submit(() -> {
+            try {
+                Thread.sleep(1000);
+                System.out.println("child thread one over");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                // 计数器值减1
+                countDownLatch.countDown();
+            }
+        });
+        // 将线程B加入线程池
+        executorService.submit(() -> {
+            try {
+                Thread.sleep(1000);
+                System.out.println("child thread two over");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                countDownLatch.countDown();
+            }
+        });
+
+        System.out.println("wait all child thread over");
+        // 等待子线程执行完毕后返回，此时计数器值为0
+        countDownLatch.await();
+        System.out.println("all child thread over");
+        executorService.shutdown();
+    }
+}
+```
+
+**CountDownLatch 是使用 AQS 实现的，使用 AQS 的状态变量来存放计数器的值**。首先在初始化时设置状态值（计数器值），当多个线程调用 countDown 方法时，实际是原子性递减 AQS 的状态值。当线程调用 await 方法后，当前线程会被放入 AQS 阻塞队列等待计数器为 0 再返回。其它线程调用 countDown 方法让计数器值递减 1，当计数器值变为 0 时，当前线程还要调用 AQS 的 doReleaseShared 方法来激活由于调用 await 方法而被阻塞的线程。
+
+```java
+public class CountDownLatch {	
+	private final Sync sync;
+	
+	public CountDownLatch(int count) {
+        if (count < 0) throw new IllegalArgumentException("count < 0");
+        this.sync = new Sync(count);
+    }
+
+	// 内部类Sync继承了抽象队列同步器AQS
+	private static final class Sync extends AbstractQueuedSynchronizer {
+        private static final long serialVersionUID = 4982264981922014374L;
+
+        Sync(int count) {
+            // 实际上把计数器的值赋给了AQS的状态变量state
+            setState(count);
+        }
+
+        int getCount() {
+            return getState();
+        }
+
+        protected int tryAcquireShared(int acquires) {
+            return (getState() == 0) ? 1 : -1;
+        }
+
+        protected boolean tryReleaseShared(int releases) {
+            // 循环进行CAS，直到当前线程成功使计数值（状态值state）减1并更新到state
+            for (;;) {
+                int c = getState();
+                if (c == 0)
+                    return false;
+                int nextc = c-1;
+                if (compareAndSetState(c, nextc))
+                    // 返回true说明是最后一个线程，那么该线程除了计数值减1，还要唤醒其它被阻塞的线程
+                    return nextc == 0;
+            }
+        }
+    }
+    
+    // 当前线程调用后会被阻塞，直到计数器值为0，或其它线程调用了当前线程的interrupt()方法
+    public void await() throws InterruptedException {
+        sync.acquireSharedInterruptibly(1);
+    }
+    // AQS中获取共享资源时可被中断的方法
+    public final void acquireSharedInterruptibly(int arg) throws InterruptedException {
+        if (Thread.interrupted())
+            throw new InterruptedException();
+        // 查看当前计数值是否为0，为0直接返回，否则进入AQS的队列等待，让当前线程阻塞
+        if (tryAcquireShared(arg) < 0)
+            doAcquireSharedInterruptibly(arg);
+    }
+    
+    public void countDown() {
+        // 委托sync调用AQS的方法
+        sync.releaseShared(1);
+    }
+    // AQS中的方法，释放共享资源
+    public final boolean releaseShared(int arg) {
+        // 调用sync内部类实现的tryReleaseShared方法
+        if (tryReleaseShared(arg)) {
+            doReleaseShared();
+            return true;
+        }
+        return false;
+    }
+}
+```
 
 
 
-### 6.2 倒计时器 CountDownLatch
+### 6.2 回环屏障 CyclicBarrier
+
+**CountDownLatch 是一次性的**，计数器的值只能在构造方法中初始化一次，之后没有任何机制再次对其设置值，当计数器值变为 0 后，再调用 await 和 countdown 方法都会立刻返回。**回环屏障 CyclicBarrier 则可以重置计数器，可以让一组线程全部达到一个状态后再全部同时执行**。“回环”指当所有等待线程执行完毕，并重置 CyclicBarrier 状态后它可以被重用； “屏障”指线程调用 await 方法后就会被阻塞，该阻塞点称为屏障点，等所有线程都调用了 await 方法后，线程们就会冲破屏障，继续向下执行。
+
+```java
+public class CyclicBarrierDemo {
+    // 第一个参数是计数器初始值，第二个参数是当计数器为0时需要执行的任务，由最后一个进入屏障的线程执行
+    private static CyclicBarrier cyclicBarrier = new CyclicBarrier(2,
+            () -> System.out.println("task merge"));
+
+    public static void main(String[] args) {
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        // 将线程A和线程B加入线程池
+        executorService.submit(CyclicBarrierDemo::executeTask);
+        executorService.submit(CyclicBarrierDemo::executeTask);
+        executorService.shutdown();
+    }
+
+    // 分段任务有序执行，任务由阶段1、阶段2、阶段3组成，必须先全部执行完前一阶段，才能执行下一阶段
+    private static void executeTask() {
+        try {
+            System.out.println(Thread.currentThread() + " step1");
+            cyclicBarrier.await();
+            System.out.println(Thread.currentThread() + " step2");
+            cyclicBarrier.await();
+            System.out.println(Thread.currentThread() + " step3");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+输出结果如下，说明 CyclicBarrier 是可复用的。假如计数器值为 N，当第 N 个线程调用 await 后，计数器值为 0，此时第 N 个线程才会发出通知唤醒前面的 N - 1 个线程。
+
+```
+Thread[pool-1-thread-1,5,main] step1
+Thread[pool-1-thread-2,5,main] step1
+task merge
+Thread[pool-1-thread-2,5,main] step2
+Thread[pool-1-thread-1,5,main] step2
+task merge
+Thread[pool-1-thread-1,5,main] step3
+Thread[pool-1-thread-2,5,main] step3
+```
+
+**CyclicBarrier 基于独占锁实现，本质底层还是基于 AQS 的**。它通过 ReentrantLock 实现计数器原子性更新，并使用条件条件变量队列来实现线程同步。
+
+```java
+public class CyclicBarrier {
+    // 使用独占锁保证更新计数器count的原子性
+    private final ReentrantLock lock = new ReentrantLock();
+    // 条件变量支持线程间使用await和signal操作进行同步
+    private final Condition trip = lock.newCondition();
+    // 记录线程个数
+    private final int parties;
+    // count最初等于parties，每当线程调用await方法就递减1，当计数器值变为0后，
+    // 会将parties值再次赋给count，从而进行复用
+    private int count;
+    // 当所有线程都到达屏障点后，需要执行的任务
+    private final Runnable barrierCommand;
+    // 当前屏障
+    private Generation generation = new Generation();
+
+    // 内部类，回环屏障的每次使用都会生成一个Generation实例，记录当前屏障是否被打破
+    private static class Generation {
+        // 没有被声明为volatile，是因为在锁内使用变量
+        boolean broken = false;
+    }
+    
+    // 当前线程调用后会被阻塞，直到计数器值为0，或其它线程调用了当前线程的interrupt()方法，
+    // 或当前屏障点关联的Generation对象的broken标志被设置为true，抛出BrokenBarrierException异常
+    public int await() throws InterruptedException, BrokenBarrierException {
+        try {
+            return dowait(false, 0L);
+        } catch (TimeoutException toe) {
+            throw new Error(toe); // cannot happen
+        }
+    }
+    
+    // 核心代码，第一个参数为是否设置超时时间，第二个参数为超时的具体时间
+    private int dowait(boolean timed, long nanos)
+        throws InterruptedException, BrokenBarrierException,
+               TimeoutException {
+        final ReentrantLock lock = this.lock;
+        // 首先获取独占锁
+        lock.lock();
+        try {
+            final Generation g = generation;
+            if (g.broken)
+                throw new BrokenBarrierException();
+            if (Thread.interrupted()) {
+                breakBarrier();
+                throw new InterruptedException();
+            }
+
+            // 获取锁的线程对count进行递减操作
+            int index = --count;
+            // 如果index==0则说明所有线程都到了屏障点，此时执行初始化时传递的任务
+            if (index == 0) {
+                boolean ranAction = false;
+                try {
+                    final Runnable command = barrierCommand;
+                    // 执行任务
+                    if (command != null)
+                        command.run();
+                    ranAction = true;
+                    // 激活被阻塞的线程，并重置CyclicBarrier
+                    nextGeneration();
+                    return 0;
+                } finally {
+                    if (!ranAction)
+                        breakBarrier();
+                }
+            }
+
+            // 如果index!=0
+            for (;;) {
+                try {
+                    if (!timed)		// 没有设置超时时间
+                        trip.await();
+                    else if (nanos > 0L)	// 设置了超时时间
+                        nanos = trip.awaitNanos(nanos);
+                } catch (InterruptedException ie) {
+                    // ...
+                }
+                // ...
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    private void nextGeneration() {
+        // 唤醒条件队列中所有阻塞的线程
+        trip.signalAll();
+        // 重置计数器值count
+        count = parties;
+        generation = new Generation();
+    }
+}
+```
 
 
 
-### 6.3 循环栅栏 CyclicBarrier
+### 6.3 信号量 Semaphore
+
+Semaphore 信号量也是一个同步器，不同的是，**它内部的计数器是递增的，且不可以自动重置**，不过可以通过改变 acquire 方法的参数，变相实现 CyclicBarrier 的功能。**其中 acquire() 和 release() 方法就相当于操作系统的 P 和 V 操作**。
+
+```java
+public class SemaphoreDemo {
+    // 初始化一个带有0个许可证的Semaphore实例
+    private static volatile Semaphore semaphore = new Semaphore(0);
+
+    public static void main(String[] args) throws InterruptedException {
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        // 将线程A和线程B加入线程池
+        executorService.submit(SemaphoreDemo::executeTaskA);
+        executorService.submit(SemaphoreDemo::executeTaskA);
+        // 需要获取2个许可证，获取失败则会阻塞，获取成功则立即返回，且许可证数量减2
+        semaphore.acquire(2);
+        // 将线程C和线程D加入线程池
+        executorService.submit(SemaphoreDemo::executeTaskB);
+        executorService.submit(SemaphoreDemo::executeTaskB);
+        semaphore.acquire(2);
+        executorService.shutdown();
+    }
+
+    private static void executeTaskA() {
+        try {
+            System.out.println(Thread.currentThread() + " task A over");
+            // 释放1个许可证，将其返回到信号量，相当于计数器值递增1
+            semaphore.release();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void executeTaskB() {
+        try {
+            System.out.println(Thread.currentThread() + " task B over");
+            semaphore.release();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+**Semaphore 也是使用 AQS 实现的，AQS 的状态变量表示当前可用信号的个数**。与 ReentrantLock 类似，它也有一个直接继承自 AQS 的 Sync 类，它的子类 NonfairSync 和 FairSync 指定获取信号量是否采用公平策略，默认采用非公平策略。
+
+```java
+    public void acquire() throws InterruptedException {
+        sync.acquireSharedInterruptibly(1);
+    }
+    
+	// AQS中的方法
+    public final void acquireSharedInterruptibly(int arg) throws InterruptedException {
+        // 如果线程被中断，则抛出中断异常
+        if (Thread.interrupted())
+            throw new InterruptedException();
+        // 否则调用Sync子类方法尝试获取（公平/不公平策略）
+        if (tryAcquireShared(arg) < 0)
+            // 如果获取失败则放入阻塞队列。然后再次尝试，如果失败则调用park方法挂起当前线程
+            doAcquireSharedInterruptibly(arg);
+    }
+    
+    // 1.非公平策略NonfairSync内部类中的方法
+	protected int tryAcquireShared(int acquires) {
+        return nonfairTryAcquireShared(acquires);
+    }
+	final int nonfairTryAcquireShared(int acquires) {
+        for (;;) {
+            // 获取当前信号量值
+            int available = getState();
+            // 计算当前剩余值
+            int remaining = available - acquires;
+            // 如果当前剩余值小于0或CAS设置成功则返回
+            if (remaining < 0 || compareAndSetState(available, remaining))
+                return remaining;
+        }
+    }
+	
+	// 2.公平策略FairSync内部类中的方法
+	protected int tryAcquireShared(int acquires) {
+        for (;;) {
+            // 靠hasQueuedPredecessors函数保证公平性，看当前线程节点的前驱节点是否在等待获取该资源，
+            // 如果是则自己放弃获取权限，，然后当前线程会被放入AQS阻塞队列
+            if (hasQueuedPredecessors())
+                return -1;
+            // ...后面与非公平策略相同
+        }
+    }
+
+	public void release() {
+        sync.releaseShared(1);
+    }
+
+	// AQS中的方法
+	public final boolean releaseShared(int arg) {
+        // 尝试释放资源
+        if (tryReleaseShared(arg)) {
+            // 资源释放成功则调用park方法唤醒AQS队列中最先挂起的线程
+            doReleaseShared();
+            return true;
+        }
+        return false;
+    }
+
+	// Sync内部类中的方法
+	protected final boolean tryReleaseShared(int releases) {
+        for (;;) {
+            int current = getState();
+            int next = current + releases;
+            if (next < current) // 溢出处理
+                throw new Error("Maximum permit count exceeded");
+            if (compareAndSetState(current, next))
+                return true;
+        }
+    }
+```
 
 
 
 
 
+## 参考
 
-
-
+1. 《Java 并发编程之美》

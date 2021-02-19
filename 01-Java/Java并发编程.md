@@ -950,6 +950,8 @@ public class Singleton {
 
 ## 参考
 
-- 《Java 并发编程之美》
-- 《Java 并发编程的艺术》
-- [深入理解Java并发之synchronized实现原理](https://blog.csdn.net/javazejian/article/details/72828483?depth_1-utm_source=distribute.pc_relevant.none-task&utm_source=distribute.pc_relevant.none-task)
+1. 《Java 并发编程之美》
+
+2. 《Java 并发编程的艺术》
+
+3. [深入理解Java并发之synchronized实现原理](https://blog.csdn.net/javazejian/article/details/72828483?depth_1-utm_source=distribute.pc_relevant.none-task&utm_source=distribute.pc_relevant.none-task)
