@@ -636,7 +636,7 @@ public class ThreadSafety implements Runnable {
 
 #### 7.2.3 synchronized 修饰代码块
 
-**修饰代码块，指定加锁对象，对给定对象加锁，进入同步代码库前要获得给定对象的锁。** ``synchronized(this) `` 代码块等价于 synchronized 修饰实例方法，都是锁定当前对象；``synchronized(class)`` 代码块等价于synchronized 修饰 static 静态方法，都是给 Class 类上锁。另外需要注意的是：尽量不要使用 synchronized(String a)，因为 JVM 中，字符串常量池具有缓冲功能。
+**修饰代码块，指定加锁对象，对给定对象加锁，进入同步代码块前要获得给定对象的锁。** ``synchronized(this) `` 代码块等价于 synchronized 修饰实例方法，都是锁定当前对象；``synchronized(class)`` 代码块等价于synchronized 修饰 static 静态方法，都是给 Class 类上锁。另外需要注意的是：尽量不要使用 synchronized(String a)，因为 JVM 中，字符串常量池具有缓冲功能。
 
 ```java
 for (int i = 0; i < 100000; i++) {

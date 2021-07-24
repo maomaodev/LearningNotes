@@ -35,7 +35,7 @@ Nginx 是一个高性能的 HTTP 和反向代理服务器，特点是占用内�
    
    * 浏览器访问：IP地址
    
-   ![nginx安装](./images/nginx/nginx安装.png)
+   ![nginx安装](./images/Nginx/nginx安装.png)
 
    
 
@@ -96,7 +96,7 @@ Nginx 的进程模型采用 Master/Worker 形式：当 Nginx 启动时，会先�
 
 * Worker进程的作用：处理 Master 进程传递过来的信号；处理网络事件，比如客户端请求。
 
-![正向代理](./images/nginx/nginx工作原理.jpg)
+![正向代理](./images/Nginx/nginx工作原理.jpg)
 
 一个 Master 进程管理多个 Worker 进程的好处：
 
@@ -115,13 +115,13 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
 **正向代理的作用**：访问原来无法访问的资源，如google；可以做缓存，加速访问资源；对客户端访问授权，上网进行认证；代理可以记录用户访问记录（上网行为管理），对外隐藏用户信息。
 
-![正向代理](./images/nginx/正向代理.png)
+![正向代理](./images/Nginx/正向代理.png)
 
 **反向代理**不需要客户端进行任何配置（无感知的），它的运行方式是以代理服务器来接受 internet 上的连接请求，然后将请求转发给内部网络上的服务器，并将从服务器上得到的结果返回给 internet 上请求连接的客户端。此时**代理服务器和目标服务器对外就表现为一个服务器**，暴露的是代理服务器地址，隐藏了真实服务器的地址。
 
 **反向代理的作用**：保证内网的安全，阻止 web 攻击，大型网站通常将反向代理作为公网访问地址，Web服务器是内网；负载均衡，通过反向代理服务器来优化网站的负载。
 
-![反向代理](./images/nginx/反向代理.png)
+![反向代理](./images/Nginx/反向代理.png)
 
 **总结：正向代理即是客户端代理，代理客户端，服务端不知道实际发起请求的客户端；反向代理即是服务端代理，代理服务端，客户端不知道实际提供服务的服务端。**
 
@@ -194,13 +194,13 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
    * 修改 nginx.conf 如下所示：
 
-   ![nginx反向代理一配置](./images/nginx/nginx反向代理一配置.png)
+   ![nginx反向代理一配置](./images/Nginx/nginx反向代理一配置.png)
 
 **实例测试**
 
 在浏览器地址栏中输入：www.abc.com，测试结果如下所示：
 
-![nginx反向代理一测试](./images/nginx/nginx反向代理一测试.png)
+![nginx反向代理一测试](./images/Nginx/nginx反向代理一测试.png)
 
 ### 2.3反向代理实例二
 
@@ -234,7 +234,7 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
    * 修改 nginx.conf 如下所示（注意重启Nginx，并开放90端口）：
 
-   ![nginx反向代理二配置](./images/nginx/nginx反向代理二配置.png)
+   ![nginx反向代理二配置](./images/Nginx/nginx反向代理二配置.png)
 
 3. **补充：location 指令说明**
 
@@ -255,7 +255,7 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
 在浏览器地址栏中分别输入：http://192.168.1.80:90/one/ 和 http://192.168.1.80:90/two/ ，测试结果如下所示：
 
-![nginx反向代理二测试](./images/nginx/nginx反向代理二测试.png)
+![nginx反向代理二测试](./images/Nginx/nginx反向代理二测试.png)
 
 
 
@@ -265,7 +265,7 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
 为了提高系统并发处理的能力，我们增加服务器的数量。**负载均衡**就是将原先请求集中到单个服务器上的情况改为将请求分发到多个服务器上，将负载分发到不同的服务器。
 
-![负载均衡](./images/nginx/负载均衡.png)
+![负载均衡](./images/Nginx/负载均衡.png)
 
 ### 3.2 负载均衡实例
 
@@ -283,7 +283,7 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
    * 修改 nginx.conf 如下所示：
 
-   ![nginx负载均衡配置](./images/nginx/nginx负载均衡配置.png)
+   ![nginx负载均衡配置](./images/Nginx/nginx负载均衡配置.png)
 
 3. **补充：Nginx 分配服务器策略**
 
@@ -306,7 +306,7 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
 在浏览器地址栏中输入：192.168.1.80/one/index.html ，测试结果如下所示：点击刷新按钮，页面将在8080与8090之间来回切换显示。
 
-![nginx负载均衡测试](./images/nginx/nginx负载均衡测试.png)
+![nginx负载均衡测试](./images/Nginx/nginx负载均衡测试.png)
 
 
 
@@ -316,7 +316,7 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
 **动静分离**就是把动态页面和静态页面由不同的服务器来解析，进而加快网站的解析速度，降低原来单个服务器的压力。动态资源指的是 jsp、servlet、php 等；静态资源指的是 html、css、js、图片等。
 
-![动静分离](./images/nginx/动静分离.png)
+![动静分离](./images/Nginx/动静分离.png)
 
 ### 4.2 动静分离实例
 
@@ -337,13 +337,13 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
    - 修改 nginx.conf 如下所示：
 
-   ![nginx动静分离配置](./images/nginx/nginx动静分离配置.png)
+   ![nginx动静分离配置](./images/Nginx/nginx动静分离配置.png)
 
 **实例测试**
 
 在浏览器地址栏中分别输入：192.168.1.80/www/index.html 和 192.168.1.80/image/test.jpg ，测试结果如下所示：
 
-![nginx动静分离测试](./images/nginx/nginx动静分离测试.png)
+![nginx动静分离测试](./images/Nginx/nginx动静分离测试.png)
 
 
 
@@ -353,7 +353,7 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
 现在很多网站都把 Nginx 作为网关入口来统一调度分配后端资源，但是如果 Nginx 宕机了，就会导致整个后台服务无法使用；或者当并发量真的非常大时，达到十万级别时，一台 Nginx 还是有极限的，所以这个时候就需要针对 Nginx 进行**主从备份保证服务高可用**、**集群来分担并发压力**。
 
-![高可用集群](./images/nginx/高可用集群.png)
+![高可用集群](./images/Nginx/高可用集群.png)
 
 
 
@@ -374,7 +374,7 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
    * `vim /etc/keepalived/keepalived.conf`：修改主服务器的 keppalived 配置文件
 
-   ![nginx高可用集群配置](./images/nginx/nginx高可用集群配置.png)
+   ![nginx高可用集群配置](./images/Nginx/nginx高可用集群配置.png)
 
    * `vim nginx_check.sh`：在 /usr/local/src/ 目录下添加检测脚本
 
@@ -397,7 +397,7 @@ Worker 数和服务器的 CPU 数相等是最为适宜的。当客户端发送�
 
 在浏览器地址栏中输入虚拟 IP 地址：192.168.1.100，测试结果如下所示。然后把主服务器的 Nginx 和 keepalived 停止，刷新页面，页面无变化。
 
-![nginx高可用集群配置](./images/nginx/nginx高可用集群测试.png)
+![nginx高可用集群配置](./images/Nginx/nginx高可用集群测试.png)
 
 
 

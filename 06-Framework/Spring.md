@@ -183,3 +183,154 @@ public interface BeanFactory {
    - 其它：
 
 5. 
+
+
+
+
+
+## 3. Bean 的生命周期
+
+在传统的 Java 应用中，Bean 的生命周期很简单，使用 Java 关键字 new 进行 Bean 的实例化，然后该 Bean  就能够使用了。一旦 Bean 不再被使用，则由 Java 自动进行垃圾回收。相比之下，Spring 管理 Bean 的生命周期就复杂多了，正确理解 Bean 的生命周期非常重要，因为 Spring 对 Bean 的管理可扩展性非常强，下面展示了一个 Bean 的构造过程：
+
+![Bean生命周期](./images/Spring/Bean生命周期.jpg)
+
+1. Spring 启动，查找并加载需要被 Spring 管理的 Bean，进行 Bean 的实例化
+2. Bean 实例化后对将 Bean 的引入和值注入到 Bean 的属性中
+3. 如果 Bean 实现了 BeanNameAware 接口，Spring 将 Bean 的 Id 传递给 setBeanName() 方法
+4. 如果 Bean 实现了BeanFactoryAware 接口，Spring 将调用 setBeanFactory() 方法，将 BeanFactory 容器实例传入
+5. 如果Bean实现了 ApplicationContextAware 接口，Spring 将调用 Bean 的 setApplicationContext() 方法，将 bean 所在应用上下文引用传入进来。
+6. 如果 Bean 实现了 BeanPostProcessor 接口，Spring 就将调用他们的 postProcessBeforeInitialization() 方法
+7. 如果 Bean 实现了 InitializingBean 接口，Spring 将调用他们的 afterPropertiesSet() 方法。类似的，如果 Bean 使用 init-method 声明了初始化方法，该方法也会被调用
+8. 如果 Bean 实现了 BeanPostProcessor 接口，Spring 就将调用他们的 postProcessAfterInitialization() 方法
+9. 此时，Bean 已经准备就绪，可以被应用程序使用了。他们将一直驻留在应用上下文中，直到应用上下文被销毁
+10. 如果 Bean 实现了 DisposableBean 接口，Spring 将调用它的 destory() 接口方法，同样，如果 Bean 使用了 destory-method 声明销毁方法，该方法也会被调用
+
+```java
+public class Book implements BeanNameAware, BeanFactoryAware,
+        ApplicationContextAware, InitializingBean, DisposableBean {
+    private String bookName;
+            
+    public String getBookName() {
+        return bookName;
+    }       
+
+    public Book(){
+        System.out.println("Bean实例化");
+    }
+
+    public void setBookName(String bookName) {
+        this.bookName = bookName;
+        System.out.println("Bean属性注入");
+    }
+
+    @Override
+    public void setBeanName(String name) {
+        System.out.println("调用BeanNameAware的setBeanName()方法");
+    }
+
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+        System.out.println("调用BeanFactoryAware的setBeanFactory()方法");
+    }
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        System.out.println("调用ApplicationContextAware的setApplicationContext()方法");
+    }
+
+    @Override
+    public void afterPropertiesSet() {
+        System.out.println("调用InitializingBean的afterPropertiesSet()方法");
+    }
+
+    public void myPostConstruct(){
+        System.out.println("调用自定义初始化方法");
+    }
+
+    @Override
+    public void destroy() {
+        System.out.println("调用DisposableBean的destroy()方法");
+    }
+
+    public void myPreDestroy(){
+        System.out.println("调用自定义销毁方法");
+    }
+}
+```
+
+自定义实现 BeanPostProcessor 的 MyBeanPostProcessor：
+
+```java
+public class MyBeanPostProcessor implements BeanPostProcessor {
+    @Override
+    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+        if(bean instanceof Book){
+            System.out.println("调用BeanPostProcessor的预初始化方法");
+        }
+        return bean;
+    }
+
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        if(bean instanceof Book){
+            System.out.println("调用BeanPostProcessor的初始化后方法");
+        }
+        return bean;
+    }
+}
+```
+
+做一个启动测试类，新建 SpringBeanLifecycleApplication：
+
+```java
+public class SpringBeanLifecycleApplication {
+    public static void main(String[] args) throws InterruptedException {
+        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("Bean-Lifecycle.xml");
+        Book book = (Book)context.getBean("book");
+        System.out.println("Bean可以使用了，book = " + book.getBookName());
+        context.destroy();
+    }
+}
+```
+
+在 resources 目录下新建 Bean-Lifecycle.xml：
+
+```xml
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+http://www.springframework.org/schema/beans/spring-beans-2.5.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!-- 扫描bean -->
+    <context:component-scan base-package="com.bean.lifecycle"/>
+
+    <!-- 实现了用户自定义初始化和销毁方法 -->
+    <bean id="book" class="com.bean.lifecycle.Book" init-method="myPostConstruct" destroy-method="myPreDestroy">
+        <!-- 注入bean 属性名称 -->
+        <property name="bookName" value="thinking in java" />
+    </bean>
+
+    <!-- 引入自定义的BeanPostProcessor -->
+    <bean class="com.bean.lifecycle.MyBeanPostProcessor"/>
+</beans>
+```
+
+结果输出如下：
+
+```
+Bean实例化
+Bean属性注入
+调用BeanNameAware的setBeanName()方法
+调用BeanFactoryAware的setBeanFactory()方法
+调用ApplicationContextAware的setApplicationContext()方法
+调用BeanPostProcessor的预初始化方法
+调用InitializingBean的afterPropertiesSet()方法
+调用自定义初始化方法
+调用BeanPostProcessor的初始化后方法
+Bean可以使用了，book = thinking in java
+调用DisposableBean的destroy()方法
+调用自定义销毁方法
+```
+
+参考：[深究Spring中Bean的生命周期](https://www.cnblogs.com/javazhiyin/p/10905294.html)

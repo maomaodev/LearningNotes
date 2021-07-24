@@ -140,7 +140,7 @@
       private static volatile Singleton singleton;
   
       // 加入双重检查代码，解决线程安全问题和懒加载问题
-      public static synchronized Singleton getSingleton() {
+      public static Singleton getSingleton() {
           if (singleton == null) {
               synchronized (Singleton.class) {
                   if (singleton == null) {
@@ -1720,7 +1720,7 @@
 
 1. **代理模式简介**
 
-   代理模式为一个对象提供一个替身，以控制对这个对象的访问，即**通过代理对象访问目标对象**。这样做的好处是：可以在目标对象实现的基础上，增强额外的功能操作，即**扩展目标对象的功能**。根据代理类的创建方式不同，我们可以将代理模式分为**静态代理和动态代理**两种形式。
+   代理模式为一个对象提供一个替身，以控制对这个对象的访问，即**通过代理对象访问目标对象**。这样做的好处是：可以在目标对象实现的基础上，增强额外的功能操作，即**扩展目标对象的功能**。根据代理类的创建方式不同，我们可以将代理模式分为**静态代理、动态代理、Cglib 代理**两种形式。
 
    代理模式与适配器模式的区别：适配器模式主要改变所考虑对象的接口，而代理模式不能改变所代理类的接口。与装饰者模式的区别：装饰者模式是为装饰的对象增强功能，而代理模式是对代理的对象加以控制，但不对对象本身的功能进行增强。
 
@@ -1834,7 +1834,67 @@
    }
    ```
 
+5. **Cglib 代理模式的实现**
 
+   **静态代理和动态代理都要求目标对象实现一个接口**，但有时目标对象只是一个单独的对象，并没有实现任何接口，这时可使用目标对象子类来实现代理，这就是 Cglib 代理。**Cglib 代理可以在内存中动态创建一个子类对象，从而实现对目标对象动态扩展，而不需要实现接口**，它属于动态代理的范畴。
+
+   第一步，创建一个 Teacher 类作为目标对象：
+
+   ```java
+   public class Teacher {
+       public String teach() {
+           System.out.println("老师授课中...");
+           return "cglib代理不需要实现接口";
+       }
+   }
+   ```
+
+   第二步，创建一个 cglib 代理对象（需要引入相关 jar 包，可使用 Maven 引入）：
+
+   ```java
+   public class ProxyFactory implements MethodInterceptor {
+       // 维护一个目标对象，即被代理对象
+       private Object target;
+   
+       public ProxyFactory(Object target) {
+           this.target = target;
+       }
+   
+       public Object getProxyInstance() {
+           // 1.创建一个工具类
+           Enhancer enhancer = new Enhancer();
+           // 2.设置父类
+           enhancer.setSuperclass(target.getClass());
+           // 3.设置回调函数
+           enhancer.setCallback(this);
+           // 4.创建子类对象，即代理对象
+           return enhancer.create();
+       }
+   
+       // 重写intercept方法，会调用目标对象的方法
+       @Override
+       public Object intercept(Object o, Method method, Object[] objects, MethodProxy methodProxy) throws Throwable {
+           System.out.println("cglib代理开始");
+           Object res = method.invoke(target, objects);
+           System.out.println("cglib代理结束");
+           return res;
+       }
+   }
+   ```
+
+   最后，使用客户端进行测试：
+
+   ```java
+   public class Client {
+       public static void main(String[] args) {
+           Teacher teacher = new Teacher();
+           Teacher proxy = (Teacher) new ProxyFactory(teacher).getProxyInstance();
+           System.out.println(proxy.teach());
+       }
+   }
+   ```
+
+   
 
 ## 四 行为型模式
 

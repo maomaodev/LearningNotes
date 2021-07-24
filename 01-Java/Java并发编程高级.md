@@ -246,7 +246,7 @@ JUC（`java.util.concurrent.atomic`）包提供了一系列的原子性操作类
 
 1. **基本类型**：`AtomicInteger`、`AtomicLong`、`AtomicBoolean `
 2. **数组类型**：`AtomicIntegerArray`、`AtomicLongArray`、`AtomicReferenceArray `
-3. **引用类型**：`AtomicReference`、`AtomicReferenceFieldUpdater``AtomicMarkableReference `
+3. **引用类型**：`AtomicReference`、`AtomicReferenceFieldUpdater`、`AtomicMarkableReference `
 4. **对象的属性修改类型**：`AtomicIntegerFieldUpdater`、`AtomicLongFieldUpdater`、`AtomicStampedReference `、`AtomicMarkableReference`
 5. **JDK 8 新增**：`LongAdder`、`LongAccumulator`、`DoubleAdder`
 

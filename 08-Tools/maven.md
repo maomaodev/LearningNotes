@@ -115,7 +115,7 @@ POM（Project Object Model，项目对象模型）是 Maven 工程的基本工�
 
 1. **坐标**：坐标在仓库中可以唯一定位一个 Maven 项目，由 groupId、artifactId、version 组成
 
-2. **全局变量**：在 pom.xml 文件中使用 properties 定义全局变量后，可以通过 `{property_name}` 的形式引用变量的值
+2. **全局变量**：在 pom.xml 文件中使用 properties 定义全局变量后，可以通过 `${property_name}` 的形式引用变量的值
 
 3. **依赖范围（scope）**：包括 compile、test、provided、runtime、system，默认采用 compile
 
