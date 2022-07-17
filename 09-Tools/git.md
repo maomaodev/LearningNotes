@@ -95,7 +95,7 @@ git 有三种状态，你的文件可能处于其中之一：
 
    * `git commit -m "commit message"`：提交到本地仓库
 
-     说明：如果不加 -m 参数，那么是不能直接输入 message 的，而是会调用一个编辑器，一般是 vim 来让你输入这个message。
+     说明：如果不加 -m 参数，那么是不能直接输入 message 的，而是会调用一个编辑器，一般是 vim 来让你输入这个message。使用命令 `git commit -amend` 可用于覆盖上一次的提交。
 
    * `git status`：查看工作区状态
 
@@ -119,7 +119,7 @@ git 有三种状态，你的文件可能处于其中之一：
 
 2. **撤销修改**
 
-   * `git checkout [filename]`：工作区文件撤销（仅使用于还没有执行 add 命令的文件）
+   * `git checkout -- [filename]`：工作区文件撤销（仅使用于还没有执行 add 命令的文件）
 
    * `git reset HEAD [filename]`：暂存区文件撤销，将暂存区文件撤销到工作区
 
@@ -215,5 +215,6 @@ github 是全球最大的代码托管网址，主要是借助 git 来进行版�
 
 ## 参考
 
-1. [git 游戏](https://learngitbranching.js.org)
+1. [知乎-图解 Git 操作](https://zhuanlan.zhihu.com/p/263050507)
+2. [git 游戏](https://learngitbranching.js.org)
 
