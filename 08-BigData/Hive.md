@@ -689,15 +689,19 @@ test.id	test.name
 查询语句语法如下，参考：[LanguageManual Select](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Select)
 
 ```sql
-SELECT [ALL | DISTINCT] select_expr, select_expr, ...
-  FROM table_reference
-  [WHERE where_condition]
-  [GROUP BY col_list]
-  [ORDER BY col_list]
-  [CLUSTER BY col_list
-    | [DISTRIBUTE BY col_list] [SORT BY col_list]
-  ]
- [LIMIT [offset,] rows]
+-- 前面数字为执行顺序，如GROUP BY在SELECT前面，所以GROUP BY不能使用SELECT中取的别名
+(7)    SELECT
+(8)    DISTINCT <select_list>
+(1)    FROM <left_table>
+(3)    <join_type> JOIN <right_table>
+(2)    ON <join_condition>
+(4)    WHERE <where_condition>
+(5)    GROUP BY <group_by_list>
+(6)    HAVING <having_condition>
+(11)   ORDER BY <order_by_condition>
+(9)    [CLUSTER BY col_list] | [DISTRIBUTE BY col_list]
+(10)   [SORT BY col_list]
+(12)   LIMIT <limit_number> 
 ```
 
 1. **准备数据，首先准备两个数据文件：dept.txt、emp.txt、loc.txt**
@@ -786,6 +790,8 @@ SELECT [ALL | DISTINCT] select_expr, select_expr, ...
    # 笛卡尔积产生条件：省略连接条件、连接条件无效、所有表中的所有行互相连接
    hive (default)> select empno, dname from emp, dept;
    ```
+
+   ![外连接](./images/Hive/外连接.png)
 
 4. **排序**
 
