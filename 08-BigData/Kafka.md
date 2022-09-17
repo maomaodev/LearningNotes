@@ -197,7 +197,7 @@ Kafka 提供了许多实用的脚本工具，存放在 $KAFKA_HOME 的 bin目录
    * --replication-factor [副本因子]：指定副本因子
    * --partitions [分区个数]：指定分区个数
 2. **kafka-console-producer.sh**
-   * **--broker-list [kafka集群地址]**：指定连接的 Kafka 集群地址（端口默认为9092）
+   * **--bootstrap-server [kafka集群地址]**：指定连接的 Kafka 集群地址（端口默认为9092）
    * --topic [主题]：指定主题名
 3. **kafka-console-consumer.sh**
    * **--bootstrap-server [kafka集群地址]**：指定连接的 Kafka 集群地址（端口默认为9092）
