@@ -1633,17 +1633,54 @@ public interface ConsumerPartitionAssignor {
 
 ### 7.4.1 消息传输保障
 
+一般而言，消息中间件的消息传输保障有 3 个层级，分别如下。
 
+1. at most once ：至多一次。消息可能会丢失，但绝对不会重复传输。
+2. at least once： 最少一次。消息绝不会丢失，但可能会重复传输。
+3. exactly once ：恰好一次。每条消息肯定会被传输一次且仅传输一次。
+
+Kafka 从 0.11.0.0 版本开始引 入了幂等和事务这两个特性，以此来实现 EOS ( exactly once semantics ，精确一次处理语义）。
 
 ### 7.4.2 幂等
 
+所谓的幂等，简单说就是**对接口的多次调用所产生的结果和调用一次是一致的**。生产者在进行重试时可能会重复写入消息，而使用 Kafka 幂等性就可以避免这种情况。开启方式很简单，只需显式地将生产者客户端参数 enable.idempotence 设置为 true 即可（默认值为 false ）。不过如果要确保幂等性功能正常，还需要确保生产者客户端的 retries、acks、max.in.flight.requests.per.connection 这几个参数不被配置错，实际上在使用幂等性时，用户完全可以不用配置（也不建议配置）这几个参数。
 
+```java
+properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+```
+
+为了实现生产者的幂等性，Kafka 引入了 producer id（PID）和序列号（sequence number）两个概念。每个新的生产者实例在初始化时都会被分配一个 PID，该 PID 对用户而言是完全透明的。对于每个 PID，消息发送到的每个分区都有对应的序列号，这些序列号从 0 开始单调递增。**生产者每发送一条消息就会将 <PID，分区> 对应的序列号的值加 1，也就是说，Kafka 的幂等只能保证单个生产者会话（session）中单分区的幂等**。
+
+broker 端会在内存中为每一对 <PID，分区> 维护一个序列号。对于收到的每一条消息，只有当它的序列号的值（SN_new）比 broker 端中维护的对应的序列号的值（SN_old）大 1（即 SN_new = SN_old + 1）时，broker 才会接收它。如果 SN_new < SN_old + 1，说明消息被重复写入，broker 可以直接将其丢弃。如果 SN_new > SN_old + 1，说明中间有数据尚未写入，出现了乱序，暗示可能有消息丢失，对应的生产者会抛出OutOfOrderSequenceException 异常，后续诸如 send()、beginTransaction()、commitTransaction() 等方法的调用都会抛出 IllegalStateException 异常。
 
 
 
 ### 7.4.3 事务
 
+**幂等性不能跨多个分区运作，而事务可以弥补这个缺陷，它可以保证对多个分区写入操作的原子性**。为了实现事务，应用程序必须提供唯一的 transactionalId，通过客户端参数 transactional.id 来显式设置。事务要求生产者开启幂等特性，因此需要同时将 enable.idempotence 设置为 true（如果未显式设置，则默认会将其设置为 true)，如果用户显式地将其设置为 false，则会报出 ConfigException。
 
+```java
+properties.put(ProducerConfig.TRANSACTIONA_ID_CONFIG，"transactionId");
+```
+
+transactionalId 与 PID 一一对应，不同的是 transactionalId 由用户显式设置，而 PID 由 Kafka 内部分配。另外，为了保证新生产者启动后，具有相同 transactionalId 的旧生产者立即失效，每个生产者通过 transactionalId 获取 PID 的同时，还会获取一个单调递增的 producer epoch（对应 KafkaProducer.initTransactions() 方法）。如果使用同一个 transactionalId 开启两个生产者，那么前一个开启的生产者会报错。
+
+```java
+// KafkaProducer提供了5个与事务相关的方法
+// 初始化事务，执行的前提是配置了transactionalId，否则报出IllegalStateException 
+void initTransactions();
+// 开启事务
+void beginTransacton() throws ProducerFencedException;
+// 提供消费者在事务内的位移提交操作
+void sendOffsetsToTransaction(Map<TopicParttion OffsetAndMetadata> offsets, 
+String consumerGroupid) throws ProducerFencedException;
+// 提交事务
+void commitTransaction() throws ProducerFencedException;
+// 中止事务，类似事务回滚
+void abortTransaction() throws ProducerFencedException;
+```
+
+在消费端有个参数 isolation.level，与事务有莫大的关联，该参数默认值为"read_uncommitted”，意即消费端可以看到（消费到）未提交的事务，当然对于已提交的事务也是可见的。该参数还可设置为“read_committed”，表示消费端不可以看到尚未提交的事务内的消息。
 
 
 

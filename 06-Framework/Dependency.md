@@ -667,7 +667,8 @@ public static final <T> List<T> parseArray(String text, Class<T> clazz);
 
 // 把 JSON 字符串反序列化为 JSONObject 或 JSONArray
 public static final Object parse(String text);
-// 把 JSON 字符串反序列化为 JSONObject
+// 把 JSON 字符串反序列化为 JSONObject（主要）
+// 有时不方便定义JavaBean，可在获取JSONObject后，通过jsonObject.getString("属性名")获取对应属性值
 public static final JSONObject parseObject(String text);
 // 把 JSON 字符串反序列化为 JSONArray
 public static final JSONArray parseArray(String text);
