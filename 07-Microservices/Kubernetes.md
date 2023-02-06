@@ -892,6 +892,8 @@ Deployment、ReplicaSet、Pod 之间实际上是一种层层控制的关系，Re
 
 ![Deployment、ReplicaSet、Pod关系](./images/Kubernetes/Deployment、ReplicaSet、Pod关系.png)
 
+在此基础上，Deployment 同样通过控制器模式来操作 ReplicaSet 的个数和属性，进而实现水平扩展/收缩和滚动更新这两个编排动作。其中，水平扩展/收缩
+
 
 
 ## 4.6 深入理解 StatefulSet

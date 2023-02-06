@@ -112,7 +112,7 @@ Kafka 中的分区可以分布在不同的服务器 broker 上，即一个主题
      # kafka运行日志(数据)存放的路径，路径不需要提前创建，kafka自动创建，可以配置多个磁盘路径，路径与路径之间可以用逗号分隔
      log.dirs=/opt/module/kafka/datas
      # 配置连接Zookeeper集群地址（在zk根目录下创建/kafka，方便管理）
-    zookeeper.connect=hadoop102:2181,hadoop103:2181,hadoop104:2181/kafka
+      zookeeper.connect=hadoop102:2181,hadoop103:2181,hadoop104:2181/kafka
      ```
 
      ```shell
@@ -1493,9 +1493,36 @@ __consumer_offsets-28			first-4
 
 ## 6.1 协议设计
 
+Kafka 自定义了一组基于 TCP 的二进制协议，**每种协议类型都有对应的请求（Request）和响应（Response）**。每种类型的 Request 都包含相同结构的协议请求头（RequestHeader）和不同结构的协议请求体（RequestBody），其中协议请求头包含 4 个域（Field）。每种类型的 Response 也包含相同结构的协议响应头（ResponseHeader）和不同结构的协议响应体（ResponseBody）。
+
+![协议请求头](./images/Kafka/协议请求头.png)
+
+![协议响应头](./images/Kafka/协议响应头.png)
+
+| 域（Field）    | 描述                                                         |
+| -------------- | ------------------------------------------------------------ |
+| api_key        | API 标识，如 PRODUCE、FETCH 分别表示发送消息和拉取消息的请求 |
+| api_version    | API 版本号                                                   |
+| correlation_id | 由客户端指定的一个数字，唯一标识这次请求的 ID，服务端在处理完请求后，也会把相同的 correlation_id 写到 Response 中，这样客户端就能把某个请求和响应对应起来 |
+| client_id      | 客户端 ID                                                    |
+
 
 
 ## 6.2 时间轮
+
+Kafka 中存在大量的延时操作，如延时生产、延时拉取、延时删除等，它并没有使用 JDK 自带的 Timer 或 DelayQueue 实现，而是基于时间轮实现了一个用于延时功能的定时器 SystemTimer，将插入和删除操作的时间复杂度从 O(nlogn) 降为 O(1)。
+
+Kafka 中的时间轮（TimingWheel）是一个存储定时任务的环形队列，底层采用数组实现，数组中每个元素可以存放一个定时任务列表（TimerTaskList）。TimerTaskList 是一个环形的双向链表，链表中的每一项表示定时任务项（TimerTaskEntry），其中封装了真正的定时任务（TimerTask）。
+
+![时间轮结构](./images/Kafka/时间轮结构.png)
+
+时间轮由多个时间格组成，每个时间格代表当前时间轮的基本时间跨度 tickMs。时间轮的时间格个数 wheelSize 是固定的，那么整个时间轮的总时间跨度 interval = tickMs * wheelSize。时间轮还有一个表盘指针 currentTime，表示时间轮当前所处的时间，currentTime 是 tickMs 的整数倍，可以将整个时间轮划分为到期部分和未到期部分，currentTime 当前指向的时间格也属于到期部分，表示刚好到期，需要处理此时间格所对应的 TimerTaskList 中的所有任务。
+
+如果一个定时任务的时间超过 interval 大小该如何处理？Kafka 为此引入了**层级时间轮**的概念，当任务的到期时间超过了当前时间轮所表示的时间范围时，就会尝试添加到上层时间轮中。图中第一层时间轮 tickMs = 1ms、wheelSize = 20、interval = 20ms。第二层时间轮的 tickMs 为第一层时间轮的 interval，即 20ms，每一层时间轮的 wheelSize 固定是 20，那么第二层时间轮的 interval = 400ms。以此类推，第三层时间轮的  interval = 8000ms。该设计类似于生活中的钟表，分别对应秒钟、分钟和时钟。
+
+![多层时间轮](./images/Kafka/多层时间轮.png)
+
+
 
 
 
@@ -1531,13 +1558,13 @@ __consumer_offsets-28			first-4
 
 RangeAssignor 分配策略是默认的分区分配策略，它**对于每一个主题**，RangeAssignor 策略会将消费组内所有订阅这个主题的消费者按照名称的字典序排序，然后为每个消费者划分固定的分区范围，如果不够平均，那么字典序靠前的消费者会被多分配一个分区。**假设 n = 分区数/消费者数量，m = 分区数%消费者数量，那么前 m 个消费者每个分配 n+1 个分区，后面的（消费者数量 - m）个消费者每个分配 n 个分区**。
 
-假设消费组内有 2 个消费组 C0、C1，都订阅了主题 t0、t1，且每个主题都有 3 个分区，那么订阅的所有分区可标识为 t0p0、t0p1、t0p2、t1p0、t1p1、t1p2，最终的分配结果为：
+假设消费组内有 2 个消费者 C0、C1，都订阅了主题 t0、t1，且每个主题都有 3 个分区，那么订阅的所有分区可标识为 t0p0、t0p1、t0p2、t1p0、t1p1、t1p2，最终的分配结果为：
 
 > 消费组 C0：t0p0、t0p1、t1p0、t1p1
 >
 > 消费组 C1：t0p2、t1p2
 
-这种情况下，对于每个主题，消费组 C0 都多消费一个分区，当主题数很多时，将产生数据倾斜。
+这种情况下，对于每个主题，消费者 C0 都多消费一个分区，当主题数很多时，将产生数据倾斜。
 
 
 

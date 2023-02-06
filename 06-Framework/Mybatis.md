@@ -580,7 +580,7 @@ MyBatis 核心组件分为 4 个部分：
        // 5.执行查询方法
        User user = new User();
        user.setUserName("张三");
-   	userDao.queryUserByCondition(user).forEach(System.out::println);
+   		userDao.queryUserByCondition(user).forEach(System.out::println);
    }
    ```
 
