@@ -1079,7 +1079,7 @@ CombineTextInputFormat.setMaxInputSplitSize(job, 4194304);
    
    * **reduce 阶段**：reduce() 函数**通过 OutputFormat 将计算结果写到 HDFS** 上。
    
-     > 为什么 map 任务将其输出写入本地磁盘，而 reduce 任何将其输出写入 HDFS ？
+     > 为什么 map 任务将其输出写入本地磁盘，而 reduce 任务将其输出写入 HDFS ？
      >
      > **map 的输出是中间结果**，该中间结果由 reduce 任务处理后才产生最终输出结果，一旦作业完成，map 的输出结果就可以删除，因此**没有必要将它存储在 HDFS 实现备份**，**而 reduce 的输出通常存储在 HDFS 种以实现可靠存储**。
 

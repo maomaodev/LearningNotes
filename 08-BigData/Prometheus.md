@@ -1840,4 +1840,5 @@ Object result = Ognl.getValue(expression, context, context.getRoot());
 3. [OGNL 官网](https://commons.apache.org/proper/commons-ognl/language-guide.html)
 3. [Ognl 表达式的基本使用方法](https://jueee.github.io/2020/08/2020-08-15-Ognl%E8%A1%A8%E8%BE%BE%E5%BC%8F%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95/)
 3. [Ognl 使用实例手册](https://juejin.cn/post/6844904013859651597)
+3. [Arthas 获取Spring Context 动态修改 Spring Boot 配置文件中的值](https://www.zhangbj.com/p/807.html)
 

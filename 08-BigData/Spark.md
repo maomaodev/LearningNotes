@@ -1207,7 +1207,7 @@ object Broadcast2 {
 
 数据聚合的本质是将相同 Key 的 record 放在一起，并进行必要的计算，该过程可以利用 Java 语言中的 HashMap 实现。方法是使用两步聚合，先将不同 tasks 获取到的 <K, V> record 存放到 HashMap 中，其中的 Key 是 K，Value 是 list(V)。然后，对于 HashMap 中每一个 <K, list(V)> record，使用 func 计算得到 <K, func(list(V))> record。
 
-以 reduceByKey(func) 为例，如左图所示，两步聚合的第 1 步是将 record 存放到 HashMap 中，第 2 步是使用 func() 函数对 list(V) 进行计算，得到最终结果。这种方式的缺点是**所有 record 都会先被存放在 HashMap 中，然后执行 func() 聚合函数**，占用内存空间较大，且效率较低。因此，可以优化采用在线聚合的方式，如右图所示，**在每个 record 加入 HashMap 时， 同时进行 func() 聚合操作，并更新相应的聚合结果**。不过，对于不包含聚合函数的操作，如 grou pByKey() 等，在线聚合和两步聚合没有差别，因为这些操作不包含聚合函数，无法减少中间数据规模。
+以 reduceByKey(func) 为例，如左图所示，两步聚合的第 1 步是将 record 存放到 HashMap 中，第 2 步是使用 func() 函数对 list(V) 进行计算，得到最终结果。这种方式的缺点是**所有 record 都会先被存放在 HashMap 中，然后执行 func() 聚合函数**，占用内存空间较大，且效率较低。因此，可以优化采用在线聚合的方式，如右图所示，**在每个 record 加入 HashMap 时， 同时进行 func() 聚合操作，并更新相应的聚合结果**。不过，对于不包含聚合函数的操作，如 groupByKey() 等，在线聚合和两步聚合没有差别，因为这些操作不包含聚合函数，无法减少中间数据规模。
 
 ![两步聚合和在线聚合](./images/Spark/两步聚合和在线聚合.png)
 
