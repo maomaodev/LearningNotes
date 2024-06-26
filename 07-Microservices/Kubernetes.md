@@ -28,7 +28,7 @@
 
 使用虚拟化技术作为应用沙盒，就必须由 Hypervisor 来负责创建虚拟机，这个虚拟机是真实存在的，并且它里面运行一个完整的客户操作系统，这就不可避免地带来了额外的资源消耗。相比之下，容器化后的应用依然是宿主机上的普通进程，这就使得容器额外的资源占用几乎可以忽略不计。有利有弊，**相较于虚拟机，容器的优势是敏捷和高性能，但是它有一个主要问题：隔离得不彻底**。
 
-首先，即然容器是在宿主机上运行的一种特殊进程，那么**多个容器之间使用的就还是同一个宿主机的操作系统内核**。这意味着，如果要在 Windows 宿主机上运行 Linux 容器，或在低版本的 Linux 宿主机上运行高版本的 Linux 容器，都是行不通的。其次，在 Linux 内核中，**有很多资源和对象是不能被 Namespace 化的，比如时间**。这意味着，如果容器中的程序通过系统调用修改了时间，那么整个宿主机的时间也被修改了。由于上述问题，尤其是共享宿主机内核的事实，容器向应用暴露的攻击面是相当大的，应用“越狱”的难度也比虚拟机低得多。
+首先，既然容器是在宿主机上运行的一种特殊进程，那么**多个容器之间使用的就还是同一个宿主机的操作系统内核**。这意味着，如果要在 Windows 宿主机上运行 Linux 容器，或在低版本的 Linux 宿主机上运行高版本的 Linux 容器，都是行不通的。其次，在 Linux 内核中，**有很多资源和对象是不能被 Namespace 化的，比如时间**。这意味着，如果容器中的程序通过系统调用修改了时间，那么整个宿主机的时间也被修改了。由于上述问题，尤其是共享宿主机内核的事实，容器向应用暴露的攻击面是相当大的，应用“越狱”的难度也比虚拟机低得多。
 
 虽然容器内的第 1 号进程在“障眼法”干扰下只能看到容器里的情况，但在宿主机上，它作为第 100 号进程与其他进程之间依然是平等的竞争关系。虽然第 100 号进程表明上被隔离了，但是它可能用光所有资源（如CPU、内存）。**Linux Cgroups（Linux control groups）就是 Linux 内核用来为进程设置资源限制的**。
 
@@ -443,7 +443,7 @@ spec:
         volumeMounts: 
         - mountPath: "/usr/share/nginx/html"
           name: nginx-vol
-      # 定义Volume，名字为nginx-vol，类型为emptyDir，即不显式声明宿主机目录，K8s会在宿主机上创建一个来临时目录，若要显式定义，只需将其修改为hostPath.path
+      # 定义Volume，名字为nginx-vol，类型为emptyDir，即不显式声明宿主机目录，K8s会在宿主机上创建一个临时目录，若要显式定义，只需将其修改为hostPath.path
       volumes: 
       - name: nginx-vol
         emptyDir: {}
@@ -574,7 +574,7 @@ deployment.apps "nginx-deploymant" deleted
          disktype: ssd
      ```
 
-   * **NodeName**：该字段一旦被赋值，K8s 会任务这个 Pod 已调度，调度的结果就是赋值的节点名称。
+   * **NodeName**：该字段一旦被赋值，K8s 会认为这个 Pod 已调度，调度的结果就是赋值的节点名称。
 
    * **HostAliases**：定义 Pod 的 hosts 文件（如 /etc/hosts）里的内容。示例中设置了一组 IP 和 hostname，在 K8s 中设置 hosts 文件内容，必须通过这种方式，若直接修改 hosts 文件，在 Pod 被删除重建后，kubelet 会自动覆盖被修改的内容。
 
@@ -853,8 +853,8 @@ deployment.apps "nginx-deploymant" deleted
 
    关于 restartPolicy 和 Pod 里容器的状态以及 Pod 状态的对应关系，有以下**两个基本设计原理**：
 
-   * 只要 Pod 的 restartPolicy 指定的策略允许重启异常的容器（Always、OnFailure），那么这个 Pod 就会保持 Running 状态，并重启容器，都则 Pod 会进入 Failed 状态。
-   * 对于包含多个容器的 Pod，只有其中所有容器都进入异常状态后，Pod 才会进入 Failed 状态。在此之前，Pod 都是 Running 状态，此时 Pod 的 READY 字段会显示正常容器的个数。
+   * 只要 Pod 的 restartPolicy 指定的策略允许重启异常的容器（Always、OnFailure），那么这个 Pod 就会保持 Running 状态，并重启容器，否则 Pod 会进入 Failed 状态。
+   * 对于包含多个容器的 Pod，只有其中**所有容器都进入异常状态后，Pod 才会进入 Failed 状态**。在此之前，Pod 都是 Running 状态，此时 Pod 的 READY 字段会显示正常容器的个数。
 
 
 
@@ -886,13 +886,161 @@ for {
 
 ## 4.5 作业副本与水平扩展
 
-**Deployment 实际上实现了 Pod 的水平扩展/收缩**。假如你更新了 Deployment 的 Pod 模版，那么 Deployment 就需要遵循一种叫做**滚动更新**到方式来升级现有容器，这个能力的实现依赖另一个 API 对象 ReplicaSet。实际上，Deployment 控制器操纵的是 ReplicaSet，而不是 Pod 对象，而对于一个 Deployment 所管理的 Pod，它的  ownerReference 就是 ReplicaSet
+**Deployment 实际上实现了 Pod 的水平扩展/收缩**。假如你更新了 Deployment 的 Pod 模版，那么 Deployment 就需要遵循一种叫做**滚动更新**到方式来升级现有容器，这个能力的实现依赖另一个 API 对象 ReplicaSet。实际上，Deployment 控制器操纵的是 ReplicaSet，而不是 Pod 对象，而对于一个 Deployment 所管理的 Pod，它的  ownerReference 就是 ReplicaSet。
 
 Deployment、ReplicaSet、Pod 之间实际上是一种层层控制的关系，ReplicaSet 负责通过控制器模式保证系统中 Pod 的个数永远等于指定个数。这也是 Deployment 只允许容器的 restartPolicy=Always 的主要原因：只有在容器保证自己始终处于 Running 状态的前提下，ReplicaSet 调整 Pod 的个数才有意义。
 
 ![Deployment、ReplicaSet、Pod关系](./images/Kubernetes/Deployment、ReplicaSet、Pod关系.png)
 
-在此基础上，Deployment 同样通过控制器模式来操作 ReplicaSet 的个数和属性，进而实现水平扩展/收缩和滚动更新这两个编排动作。其中，水平扩展/收缩
+在此基础上，Deployment 同样通过控制器模式来操作 ReplicaSet 的个数和属性，进而实现水平扩展/收缩和滚动更新这两个编排动作。其中，水平扩展/收缩容易实现，DeploymentController 只需要修改它所控制的 Replicaset 的 Pod 副本个数就可以了。比如，把 replicas = 3 改成 4，那么 Deployment 所对应的 ReplicaSet 就会根据修改后的值自动创建一个新 Pod。这就是水平扩展，水平收缩反之。用户使用指令 `kubectl scale deployment nginx-deployment --replicas=4` 可以执行该操作。
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: nginx-deployment
+  labels: 
+    app: nginx
+spec: 
+  replicas: 3
+  selector: 
+    matchLables: 
+      app: nginx
+  template: 
+    metadata: 
+      labels: 
+        app: nginx
+    spec: 
+      containers: 
+      - name: nginx
+        image: nginx:1.7.9	# 1.7.9 -> 1.9.1
+        ports: 
+        - containerPort: 80
+```
+
+```shell
+# --record参数作用是记录每次操作所执行的命令，方便之后查看
+[root@k8smaster ~]# kubectl create -f nginx-deployment.yaml --record
+
+# 检查创建后的状态信息，返回结果包含4个状态字段：
+# 1.DESIRED：用户期望的Pod副本个数（spec.replicas的值）
+# 2.CURRENT：当前处于Running状态的Pod的个数
+# 3.UP-TO-DATE：当前处于最新版本的Pod个数。最新版本指的是Pod的Spec部分与Deployment里Pod模板定义的一致
+# 4.AVAILABLE：当前已经可用的Pod个数，即既是Running状态，又是最新版本，并且已处于Ready（健康检查显示正常）状态的Pod个数。可以看到，只有AVAILABLE字段描述的才是用户所期望的最终状态
+[root@k8smaster ~]# kubectl get deployments
+NAME							DESIRED		CURRENT		UP-TO-DATE	AVAILABLE	AGE
+nginx-deployment	3					0					0						0					1s
+
+# 实时查看Deployment对象的状态变化
+[root@k8smaster ~]# kubect1 rollout status deployment/nginx-deployment
+waiting for rollout to finish: 2 out of 3 new replicas have been updated.. deployment.apps/nginx-deployment successfully rolled out
+
+# 查看Deployment所控制的ReplicaSet。
+# ReplicaSet名字由Deployment名字和一个随机字符串组成，这个随机字符串叫作pod-template-hash，ReplicaSet会把这个随机宇符串加在它所控制的所有Pod的标签里，从而避免与集群里的其他Pod混淆。
+# 对比输出字段，Deployment只是在Replicaset基础上添加了UP-TO-DATE这个跟版本有关的状态字段。
+[root@k8smaster ~]# kubectl get rs
+NAME													DESIRED		CURRENT		READY		AGE
+nginx-deployment-3167673210		3					3					3				20s
+
+
+# 修改Deployment的Pod模板，“滚动更新”自动触发。
+# 修改Deployment有很多方法，这里使用kubect1 edit指令编辑etcd里的API对象，将image字段修改为“nginx:1.9.1”。实现原理即把API对象的内容下载到本地文件，修改完成后再提交上去。
+[root@k8smaster ~]# kubectl edit deployment/nginx-deployment
+
+# 查看Deployment的Events，可以看到“滚动更新”过程。
+[root@k8smaster ~]# kubectl describe deployment/nginx-deployment
+...
+Events:
+	Type		Reason							Age		From										Message
+	Normal	ScalingReplicaSet		24s		deployment-controller		Scaled up replica set nginx-deployment-1764197365 to 1
+	Normal	ScalingReplicaSet		22s		deployment-controller		Scaled down replica set nginx-deployment-3167673210 to 2
+	Normal	ScalingReplicaSet		22s		deployment-controller		Scaled up replica set nginx-deployment-1764197365 to 2
+	Normal	ScalingReplicaSet		19s		deployment-controller		Scaled down replica set nginx-deployment-3167673210 to 1
+	Normal	ScalingReplicaSet		19s		deployment-controller		Scaled up replica set nginx-deployment-1764197365 to 3
+	Normal	ScalingReplicaSet		14s		deployment-controller		Scaled down replica set nginx-deployment-3167673210 to 0
+
+
+# 滚动更新完成后，查看新旧两个ReplicaSet的最终状态
+[root@k8smaster ~]# kubectl get rs
+NAME													DESIRED		CURRENT		READY		AGE
+nginx-deployment-1764197365		3					3					3				6s
+nginx-deployment-3167673210		0					0					0				30s
+```
+
+当修改了 Deployment 里的 Pod 定义之后，Deployment Controller 会使用这个修改后的 Pod 模板创建一个新的 ReplicaSet（hash=1764197365），这个新的 ReplicaSet 的初始 Pod 副本数为 0。然后，在 Age=24s 的位置，Deployment Controller 开始将这个新的 ReplicaSet 所控制的 Pod 副本数从 0 变成 1，即水平扩展出一个副本。紧接着，在 Age=22s 的位置，Deployment Controller 又将旧的 ReplicaSet（hash=3167673210）所控制的旧 Pod 副本数减少一个，即水平收缩成两个副本。
+
+如此交替进行，新 ReplicaSet 管理的 Pod 副本数从 0 变成 1，再变成 2，最后变成了 3。而旧的 ReplicaSet 管理的 Pod 副本数从 3 变成 2，再变成 1，最后变成 0。这样就完成了这一组 Pod 的版本升级过程。像这样，**将一个集群中正在运行的多个 Pod 版本交替地逐一升级的过程，就是滚动更新**。
+
+这种滚动更新的好处是显而易见的。比如，在升级刚开始时，集群里只有 1 个新版本的 Pod。如果此时新版本 Pod 因问题无法启动，滚动更新就会停止，从而允许开发/运维人员介入。而在此过程中，由于应用本身还有两个旧版本的 Pod 在线，因此服务不会受到太大影响。当然，这也就**要求一定要使用 Pod 的健康检查机制检查应用的运行状态，而不是简单地依赖容器的 Running 状态**。不然，虽然容器已经变成 Running 了，但服务很有可能尚末启动，滚动更新的效果也就达不到了。
+
+为了进一步保证服务的连续性，Deployment Controller 还会确保在任何时间窗口内，只有指定比例的 Pod 处于离线状态。同时，它也会确保在任何时间窗口内，只有指定比例的新 Pod 被创建出来。这两个比例的值都是可配置的，默认都是 DESIRED 值的 25%。所以，在上面这个 Deployment 的例子中，它有 3 个Pod 副本，那么控制器在滚动更新过程中永远会确保至少有 2 个Pod处于可用状态，至多只有 4 个 Pod 同时存在于集群中。这个策略是 Deployment 对象的一个字段，名叫 Rolling UpdateStrategy。
+
+```yaml
+spec: 
+# ...
+	strategy:
+		type: RollingUpdate 
+		rollingUpdate:
+    	# 指定除DESIRED数量外，在一次滚动更新中Deployment控制器还可以创建多少新Pod，可以用百分比表示
+			maxSurge: 1
+			# 指定在一次滚动更新中，Deployment控制器可以删除多少旧Pod，可以用百分比表示，如50%表示一次最多可以删除 50%*DESIRED 数量个Pod
+			maxUnavailable: 1
+```
+
+综上所述，扩展 Deployment、Replicaset 和 Pod 的关系图。**Deployment 的控制器实际控制的是 ReplicaSet 的数目，以及每个 ReplicaSet 的属性。而一个应用的版本对应的正是一个 ReplicaSet， 这个版本应用的 Pod 数量则由 ReplicaSet 通过自己的控制器（ReplicaSet Controller）来保证**。通过这样的多个 ReplicaSet 对象，K8s 项目就实现了对多个应用版本的描述。
+
+![Deployment、ReplicaSet、Pod关系2](./images/Kubernetes/Deployment、ReplicaSet、Pod关系2.png)
+
+```shell
+# 使用kubectl set image指令修改Deployment镜像
+[root@k8smaster ~]# kubectl set image deployment/nginx-deployment nginx=nginx:1.91
+deployment.extensions/nginx-deployment image updated
+
+# 由于nginx:1.91镜像并不存在，因此滚动更新被触发后会立刻报错并停止。
+# 新版本的ReplicaSet（hash=2156724341）已经创建了两个Pod，但是都没有进人READY状态。
+# 旧版本的ReplicaSet（hash=1764197365）已经有一个旧Pod被删除，还剩下两个旧Pod。
+[root@k8smaster ~]# kubectl get rs
+NAME													DESIRED		CURRENT		READY		AGE
+nginx-deployment-1764197365		2					2					2				24s
+nginx-deployment-3167673210		0					0					0				35s
+nginx-deployment-2156724341		2					2					0				7s
+
+# 回滚到旧版本。Deployment控制器其实就是让旧ReplicaSet（hash=1764197365）再次扩展成3个Pod，而让新ReplicaSet（hash=2156724341）重新收缩到0个Pod。
+[root@k8smaster ~]# kubectl rollout undo deployment/nginx-deployment 
+deployment.extensions/nginx-deployment
+
+# 查看每次Deployment变更对应的版本。由于在创建Deployment时指定了--record参数，因此创建这些版本时执行的kubectl命令会被记录下来。
+[root@k8smaster ~]# kubectl rollout history deployment/nginx-deployment
+deployments	"nginx-deployment"
+REVISION		CHANGE-CAUSE
+1						kubectl create -f nginx-deployment.yam1 --record
+2						kubectl edit deployment/nginx-deployment
+3						kubectl set image deployment/nginx-deployment nginx=nginx:1.91
+
+# 查看每个版本对应Deployment的API对象细节
+[root@k8smaster ~]# kubectl rollout history deployment/nginx-deployment --revision=2
+
+# 回滚到指定版本
+[root@k8smaster ~]# kubectl rollout undo deployment/nginx-deployment --to-revision=2
+deployment.extensions/nginx-deployment
+
+# 以上对Deployment进行的每一次更新操作都会生成一个新的ReplicaSet对象，下面演示对Deployment的多次更新操作，最后只生成一个ReplicaSet对象。
+# 首先让Deployment进入暂停状态，然后使用kubectl edit或kubectl set image指令修改Deployment
+[root@k8smaster ~]# kubectl rollout pause deployment/nginx-deployment
+deployment.extensions/nginx-deployment paused
+
+# 在kubectl rollout pause指令执行之后，kubect1 rollout resume指令执行之前，对Deployment进行的所有修改最后都只会触发一次滚动更新
+[root@k8smaster ~]# kubect1 rollout resume deploy/nginx-deployment
+deployment.extensions/nginx-deployment resumed
+
+# 结果显示，只有一个Replicaset被创建
+[root@k8smaster ~]# kubectl get rs
+NAME													DESIRED		CURRENT		READY		AGE
+nginx-deployment-1764197365		0					0					0				2m
+nginx-deployment-3196763511		3					3					3				28s
+```
+
+
 
 
 
@@ -900,13 +1048,84 @@ Deployment、ReplicaSet、Pod 之间实际上是一种层层控制的关系，Re
 
 ### 4.6.1 拓扑状态
 
+Deployment 不足以覆盖所有应用编排问题，因为它认为一个应用的所有 Pod 是完全一样的，所以它们之间没有顺序，也无所谓在哪台宿主机上运行。需要时 Deployment 就可以通过 Pod 模板创建新的Pod；不需要时，Deployment 就可以结束任意一个 Pod。
+
+但在实际场景中，并非所有应用都满足这样的要求。尤其是分布式应用，它的多个实例之问往往有依赖关系，如主从关系、主备关系；还有数据存储类应用，它的多个实例往往会在本地磁盘上保存一份数据，而这些实例一旦被结束，即便重建出来，实例与数据之间的对应关系也已经丟失，从而导致应用失败。所以，**这种实例之间有不对等关系，以及实例对外部数据有依赖关系的应用，就称为有状态应用（stateful application）**。
+
+容器适合封装无状态应用（stateless application）。K8s 在 Deployment 基础上扩展出了对有状态应用的初步支持，这个编排功能就是 StatefulSet，它把现实世界的应用状态抽象为两种：
+
+1. **拓扑状态**：**应用的多个实例之间不是完全对等的**。这些应用实例必须按照某种顺序启动，比如应用的主节点 A 要先于从节点 B 启动。而如果删除 A 和 B 两个 Pod，它们再次被创建出来时也必须严格按照这个顺序运行。并且，新创建出来的 Pod 必须和原来 Pod 的网络标识一样，这样原先的访问者才能使用同样的方法访问到这个新 Pod。
+2. **存储状态**：**应用的多个实例分别绑定了不同的存储数据**。对于这些应用实例来说，Pod A 第一次读取到的数据和隔了 10 分钟之后再次读取到的数据应该是同一份，哪怕在此期间 Pod A 被重新创建过。这种情况最典型的例子是一个数据库应用的多个存储实例。
+
+所以，StatefulSet 的核心功能就是通过某种方式记录这些状态，然后在 Pod 被重新创建时，能够为新 Pod 恢复这些状态。在介绍 StatefulSet 原理前，首先介绍 Headless Service。**Service 是 K8s 用来将一组 Pod 暴露给外界访问的一种机制**。比如，一个 Deployment 有 3 个 Pod，那么就可以定义一个 Service。这样，用户只要能访问到这个 Service，就能访问到某个具体的 Pod。有两种方式：
+
+1. **以 Service 的 VIP（virtual IP，虚拟IP）方式**。比如，当访问 10.0.23.1 这个 Service 的 IP 地址时，10.0.23.1 其实就是一个 VIP，它会把请求转发到该 Service 所代理的某一个 Pod 上。
+2. **以 Service的 DNS 方式**。比如，此时只要访问“my-svc.my-namespace.svc.cluster.local”这条 DNS 记录，就可以访问到名叫 my-svc 的 Service 所代理的某一个 Pod。具体又可以分为两种处理方法：
+   * **Normal Service**： 在这种情况下，访问“my-svc.my-namespace.svc.cluster.local”解析到的，正是 my-svc 这个 Service 的 VIP，后面的流程跟 VIP 方式一致。
+   * **Headless Service**：在这种情况下，访问“my-svc.my-namespace.svc.cluster.local”解析到的，直接就是 my-svc 代理的某一个 Pod 的 IP 地址。这里区别在于，Headless Service 不需要分配一个 VIP，而是可以直接以 DNS 记录的方式解析出被代理 Pod 的 IP 地址。
+
+下面是一个标准 Headless Service 对应的 YAML 文件，其仍是一个标准 Service 的 YAML 文件。只不过它的 clusterIP 字段的值是 None，即这个 Service 没有一个 VIP 作为“头”，这就是 Headless 含义。所以，这个 Service  被创建后并不会被分配一个 VIP，而是会以 DNS 记录的方式暴露出它所代理的 Pod。而它所代理的 Pod，依然是 Label Selector 机制选出的，即所有携带了 app: nginx 标签的 Pod 都会被这个 Service 代理。
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels: 
+    app: nginx
+spec: 
+  ports: 
+  - port: 80
+    name: web
+  clusterIP: None
+  selector: 
+    app: nginx
+```
+
+当按照这样的方式创建了一个 HeadlessService 之后，它所代理的所有 Pod 的 IP 地址都会被绑定一个如下格式的 DNS 记录：`＜pod-name＞.＜svc-name＞.＜namespace＞.svc.c1uster.1ocal`。这个 DNS 记录，正是 K8s 为 Pod 分配的唯一**可解析身份**。有了这个可解析身份，只要知道了一个 Pod 的名字及其对应的 Service 的名字，就可以通过这条 DNS 记录访问到 Pod 的 IP 地址。
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec: 
+  # 告诉StatefulSet控制器，在执行控制循环时使用nginx这个Headless Service来保证Pod可解析
+  serviceName: "nginx"
+  replicas: 2
+  selector:
+    matchLables: 
+      app: nginx
+  template: 
+    metadata: 
+      labels: 
+        app: nginx
+    spec: 
+      containers: 
+      - name: nginx
+        image: nginx:1.9.1
+        ports: 
+        - containerPort: 80
+          name: web
+```
+
+
+
+
+
+
+
 
 
 ### 4.6.2 存储状态
 
 
 
+
+
 ### 4.6.3 有状态应用实践
+
+
 
 
 

@@ -680,39 +680,53 @@ public static final JSONArray parseArray(String text);
 
 ## 5.1 简介
 
-1. log4j（作者 Ceki Gülcü）出来时就得到了广泛的应用，是 Java 日志事实上的标准，并成为 Apache 项目。
-2. Apache 要求把 log4j 并入 JDK，SUN 拒绝，并在 jdk1.4 版本后增加了 JUL（java.util.logging）。由于是 JDK 自带的，因此也有很多人用，同时还有其他日志组件，如 SimpleLog 等，这时如果有人想换成其他日志组件，如 log4j 换成 JUL，因为 API 完全不同，就需要改动代码。
-3. Apache 见此，开发了 JCL，即 commons-logging-xx.jar。它只提供一套通用的日志接口 API，并不提供日志的实现，依赖抽象而非实现，这样应用程序可以在运行时选择自己想要的日志实现组件。
-4. 但是 Log4j 的作者觉得 JCL 不好用，自己开发出 Slf4j，它跟 JCL 类似，本身不替供日志具体实现，只对外提供接口或门面，目的就是为了替代 JCL。同时还开发出 logback，一个比 Log4j 拥有更高性能的组件，目的是为了替代 Log4j。
+![日志发展史](./images/dependency/日志发展史.png)
+
+1. Log4j 最初由瑞士程序员 Ceki Gülcü 开发，出来时就得到了广泛的应用，是 Java 日志事实上的标准，后来成为 Apache 项目。
+2. Apache 要求把 Log4j 并入 JDK，遭到 SUN 拒绝，后者在 JDK 1.4 版本增加了 JUL。由于 JDK 自带，因此也有很多人用，这时如果想换成日志组件，如 Log4j 换成 JUL，因为 API 完全不同，就需要改动代码。
+3. Apache 见此，开发了 JCL，它只提供一套通用的日志接口 API，并不提供日志的实现，依赖抽象而非实现，这样应用程序可以在运行时选择自己想要的日志实现组件。
+4. 但是 Log4j 的作者对 JCL 不满意，于是自己开发了 Slf4j，它跟 JCL 类似，本身不替供日志具体实现，只对外提供接口或门面，目的就是为了替代 JCL。同时还开发出 Logback，一个比 Log4j 拥有更高性能的组件，目的是为了替代 Log4j。
 5. Apache 参考了 Logback，并做了一系列优化，推出了 Log4j2。
 
-参考：[b 站视频](https://www.bilibili.com/video/BV13A41137Tc?p=1&vd_source=03ee00a529e3c4f9c2d8c6f412586123)
-
-![日志发展史](./images/dependency/日志发展史.png)
+参考：[b 站视频](https://www.bilibili.com/video/BV13A41137Tc?p=1&vd_source=03ee00a529e3c4f9c2d8c6f412586123)、[JUL日志](https://bbs.huaweicloud.com/blogs/384489)、[slf4j源码解析-门面模式](https://blog.csdn.net/ym674745853/article/details/104715787/)、[深入掌握Java日志体系](https://www.modb.pro/db/221840)、[slf4j 官网](https://www.slf4j.org/manual.html)
 
 
 
 ## 5.2 JUL
 
-JUL 是 java.util.logging 包的简称，其日志按照等级**从低到高依次为：ALL < FINEST < FINER < FINE < CONFIG < INFO < WARNING < SEVERE < OFF**，默认级别为 INFO。注意，JUL 中的 handler 就是 Log4j 中的 Appender。
+JUL 是 java.util.logging 包的简称，不需要额外引入 jar 包，其日志按照等级**从低到高依次为：ALL < FINEST < FINER < FINE < CONFIG < INFO < WARNING < SEVERE < OFF**，默认级别为 INFO。日志实现框架的组成大多类似，主要包含如下四个主要的组件：
+
+1. **Logger**：日志记录的核心类，关联着一组 Handler，负责收集处理日志记录。
+2. **Handler**：对应 Log4j 中的 Appender，负责日志的输出，一个输出源就叫一个 Handler，其类别有：控制台、文件、套接字、内存等。
+3. **Layout**：对应 Log4j 中的 Layout，负责转换和格式化日志。
+4. **Filter**：负责根据规则过滤日志。
+
+日志输出的大致流程如下：
+
+1. 获取 Logger 实例，该实例初始化会**自动配置一个 RootLogger（即它的父 Logger）**。
+2. 当使用 Logger 实例调用方法输出日志时，首先会**比对 Logger 本身的日志等级，以及使用 Filter 过滤日志**。
+3. 获取 Logger 实例关联的 Handlers 集合，并依次调用集合中 Handler 的 publish() 方法来输出日志信息，**再此之前会比对 Handler 的日志等级，以及使用 Filter 过滤日志**。
+4. 根据 Logger 实例的 useParentHandlers 布尔值判断**是否执行父 Logger 中的 Handlers**，操作同 3。
+
+![日志组件](./images/dependency/日志组件.png)
 
 ```properties
-# "handlers" specifies a comma separated list of log Handler classes.
+# RootLogger顶级父元素指定的默认处理器 ConsoleHandler，可添加多个用,隔开
 handlers = java.util.logging.ConsoleHandler
-# Default global logging level.
+# RootLogger 顶级父元素默认的日志级别为INFO
 .level = INFO
 
-# default file output is in user's home directory.
+# 若是上面handlers中多加了一个FileHandler则配置生效
 java.util.logging.FileHandler.pattern = %h/java%u.log
 java.util.logging.FileHandler.limit = 50000
 java.util.logging.FileHandler.count = 1
 java.util.logging.FileHandler.formatter = java.util.logging.XMLFormatter
 
-# Limit the message that are printed on the console to INFO and above.
+# 对应上面handlers中的ConsoleHandler进行配置
 java.util.logging.ConsoleHandler.level = INFO
 java.util.logging.ConsoleHandler.formatter = java.util.logging.SimpleFormatter
 
-# For example, set the com.example.maomao.level to only log WARNING
+# 特殊logger日志的默认等级
 com.example.maomao.level = WARNING
 ```
 
@@ -720,7 +734,7 @@ com.example.maomao.level = WARNING
 import java.io.IOException;
 import java.util.logging.*;
 
-// JUL不需要额外引入jar包，由于底层使用System.err输出，因此日志输出是洋红色
+// JUL不需要额外引入jar包，默认配置文件位于$JAVA_HOME/jre/lib/logging.properties
 public class JULDemo {
     static {
         LogManager logManager = LogManager.getLogManager();
@@ -737,6 +751,8 @@ public class JULDemo {
     private static final Logger LOGGER = Logger.getLogger(JULDemo.class.getName());
 
     public static void main(String[] args) {
+      	// 日志级别：ALL < FINEST < FINER < FINE < CONFIG < INFO < WARNING < SEVERE < OFF
+        // 若子Logger未显式设置日志级别，将继承父Logger日志级别，底层使用System.err输出，因此日志输出是洋红色
         // LOGGER.finest("finest level");
         LOGGER.log(Level.FINEST, "finest level");
         LOGGER.log(Level.FINER, "finer level");
@@ -746,13 +762,19 @@ public class JULDemo {
         LOGGER.log(Level.WARNING, "warning level");
         LOGGER.log(Level.SEVERE, "severe level");
 
-        Logger logger1 = Logger.getLogger("a");
-        Logger logger2 = Logger.getLogger("a.b");
+        Logger logger1 = Logger.getLogger("com");
+        Logger logger2 = Logger.getLogger("com.example");
+        // Logger中的父子关系通过名字当中的“.”来决定
+        System.out.println(logger2.getParent() + " = " + logger2.getParent().getName());
+        System.out.println(logger1 + " = " + logger1.getName());
         // 所有Logger的默认父级是java.util.logging.LogManager$RootLogger
-        System.out.println(logger1.getParent());
-        // Logger中的父子关系通过名字当中的“.”来决定，且所有日志技术都有父子关系这个概念
-        System.out.println(logger2.getParent().getName());
+        System.out.println(logger1.getParent() + " = " + logger1.getParent().getName());
 
+        // 自定义RootLogger（即设置name=""）
+				// Logger logger3 = Logger.getLogger("");
+				// System.out.println(logger3 + " = " + logger3.getName());
+
+	      // 设置自己的Handler
         logger2.addHandler(new ConsoleHandler());
         // 解决父子关系中日志重复输出的问题
         logger2.setUseParentHandlers(false);
@@ -765,13 +787,7 @@ public class JULDemo {
 
 ## 5.3 Log4j
 
-Log4j 是 Log for java 的简称，其日志按照等级**从低到高依次为：TRACE < DEBUG < INFO < WARN < ERROR < FATAL < OFF**，默认级别为 INFO。如果配置为 OFF 级别，表示关闭日志。Log4j 支持两种格式的配置文件：properties 和 xml，包含三个主要的组件：
-
-1. **Logger**：日志记录器，日志记录的核心类，负责收集处理日志记录，可以有选择的启动和禁用日志的输出。
-2. **Appender**：日志输出目标，负责日志的输出，一个输出源就叫一个 Appender，其类别有：Console、File、JDBC、JMS 等。logger 可以通过方法 logger.addAppender(appender) 配置多个 appender，对 logger 来说，每个有效的日志请求结果都将**输出到 logger 本身及父 logger 的 appender 上**。
-3. **Layout**：日志格式化器，用于指定日志按照什么格式输出，是日志输出的格式化器。
-
-![log4j组件](./images/dependency/log4j组件.png)
+Log4j 是 Log for java 的简称，其日志按照等级**从低到高依次为：ALL < TRACE < DEBUG < INFO < WARN < ERROR < FATAL < OFF**，默认级别为 INFO。如果配置为 OFF 级别，表示关闭日志。Log4j 支持两种格式的配置文件：properties 和 xml，
 
 ```xml
 <dependency>
@@ -811,14 +827,14 @@ log4j.appender.a2.Threshold = INFO
 log4j.appender.a2.layout = org.apache.log4j.PatternLayout
 log4j.appender.a2.layout.ConversionPattern = %d{yyyy-MM-dd HH:mm:ss} %-5p %20c %L:%m %n
 
-# 可以指定具体的包
+# 可以指定具体的包（为避免重复输出，指定的Appender最好不要与父Logger重复）
 #log4j.logger.com.example.maomao = ERROR,stdout,a1,a2
 ```
 
 ```java
 import org.apache.log4j.Logger;
 
-// Log4j需要引入jar包，且必须有Log4j配置文件log4j.properties
+// Log4j需要引入jar包，且必须有Log4j配置文件log4j.properties，默认类路径下寻找
 public class Log4jDemo {
     private static final Logger LOGGER = Logger.getLogger(Log4jDemo.class);
 
@@ -836,6 +852,8 @@ public class Log4jDemo {
 
 
 ## 5.4 Log4j2
+
+Log4j2 日志按照等级**从低到高依次为：ALL < TRACE < DEBUG < INFO < WARN < ERROR < FATAL < OFF**，默认级别为 INFO。它支持四种格式的配置文件：properties、xml、yaml、json。
 
 ```xml
  <dependency>
@@ -861,7 +879,7 @@ appender.console.filter.threshold.level = info
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-// Log4j2需要引入jar包，且必须有Log4j2配置文件log4j2.properties
+// Log4j2需要引入jar包，且必须有Log4j2配置文件log4j2.properties，默认类路径下寻找
 public class Log4j2Demo {
     private static final Logger LOGGER = LogManager.getLogger(Log4j2Demo.class);
 
@@ -880,14 +898,23 @@ public class Log4j2Demo {
 
 ## 5.5 JCL
 
-JCL 是 Jakarta Commons Logging 的简称，称作"门面日志"，即它**不负责写日志，而是提供用一个统一的接口**，通过 jar 来决定使用的日志框架，这样就不要在更换框架时修改代码了。JCL 日志按照等级从低到高依次为：TRACE < DEBUG < INFO < WARN < ERROR < FATAL < OFF，默认级别为 INFO。**JCL 默认使用 JUL 进行日志输出，若要使用 Log4j 进行日志输出，需要引入 Log4j 的 jar 包，并配置 log4j.properties 文件**。
+JCL 是 Jakarta Commons Logging 的简称，称作"门面日志"，即它**不负责写日志，而是提供用一个统一的接口**，通过 jar 来决定使用的日志框架，这样就不要在更换框架时修改代码了。JCL 日志按照等级从低到高依次为：ALL < TRACE < DEBUG < INFO < WARN < ERROR < FATAL < OFF，默认级别为 INFO。**JCL 默认使用 JUL 进行日志输出，若要使用 Log4j 进行日志输出，需要引入 Log4j 的 jar 包，并配置 log4j.properties 文件**。注意，JCL 已停止维护，最近一次更新是 2014 年，且包含多个漏洞，由于 Spring 4 使用的是原生 JCL，因此不建议使用；Spring 5 使用的是 spring-jcl，是经过改造的 JCL。
 
 ```xml
+<!--JCL默认使用JUL进行日志输出-->
 <dependency>
     <groupId>commons-logging</groupId>
     <artifactId>commons-logging</artifactId>
     <version>1.2</version>
 </dependency>
+<!--若要使用Log4j进行日志输出，需要引入Log4j，并配置log4j.properties文件-->
+<!--
+<dependency>
+    <groupId>log4j</groupId>
+    <artifactId>log4j</artifactId>
+    <version>1.2.17</version>
+</dependency>
+-->
 ```
 
 ```java
@@ -913,9 +940,7 @@ public class JCLDemo {
 
 ## 5.6 Slf4j
 
-Slf4j 是 simple logging facade for java 的简称，与 JCL 类似，它也是一种"门面日志"，日志按照等级从低到高依次为：TRACE < DEBUG < INFO < WARN < ERROR，默认级别为 INFO。**Slf4j + Logback 是目前最流行的组合，若要使用 Slf4j + log4j，则需要引入相关 jar 包，并配置 log4j.properties 文件（不能用 logback.xml）**。
-
-参考：[slf4j 官网](https://www.slf4j.org/manual.html)
+Slf4j 是 Simple Logging Facade For Java 的简称，与 JCL 类似，它也是一种"门面日志"，日志按照等级从低到高依次为：TRACE < DEBUG < INFO < WARN < ERROR，默认级别为 INFO。**Slf4j + Logback 是目前最流行的组合，若要使用 Slf4j + log4j，则需要引入相关 jar 包，并配置 log4j.properties 文件（不能用 logback.xml）**。
 
 ### 5.6.1 Slf4j + Logback
 
@@ -1004,7 +1029,7 @@ public class Slf4jDemo {
 
 
 
-### 5.6.2 Slf4j + log4j
+### 5.6.2 Slf4j + Log4j
 
 ```xml
 <!-- slf4j+log4j -->
@@ -1026,18 +1051,54 @@ public class Slf4jDemo {
 </dependency>
 ```
 
+```properties
+# INFO表示日志级别，stdout、a1、a2分别表示把Logger和具体的Appender关联起来
+log4j.rootLogger = TRACE,stdout
+
+# 配置控制台的appender，其名字为stdout，可以随便起
+log4j.appender.stdout = org.apache.log4j.ConsoleAppender
+log4j.appender.stdout.Target = System.out
+log4j.appender.stdout.Threshold = TRACE
+log4j.appender.stdout.layout = org.apache.log4j.PatternLayout
+# %d表示日期，%-5p表示日志级别并对齐，%20c表示全类名，%L表示第几行，%m表示打印的消息，%n表示换行
+log4j.appender.stdout.layout.ConversionPattern = %d{yyyy-MM-dd HH:mm:ss} %-5p %20c %L:%m %n
+```
+
+```java
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class Slf4jLog4jDemo {
+    private static final Logger LOGGER = Logger.getLogger(Slf4jLog4jDemo.class);
+
+    public static void main(String[] args) {
+        LOGGER.trace("trace");
+        LOGGER.debug("debug");
+        LOGGER.info("info");
+        LOGGER.warn("warn");
+        LOGGER.error("error");
+        LOGGER.fatal("fatal");
+    }
+}
+```
 
 
-### 5.6.3 日志切换
+
+### 5.6.3 适配器模式
+
+适配器模式用一句话总结，即**用一个包装来包装不兼容的接口对象**，其适用场景是：已经存在的类的接口不符合需求，**解决正在服役的项目问题**。模式角色共 3 个：Adaptee 被适配者（org.apache.log4j）、Target 目标接口（org.slf4j.Logger）、Adapter 适配器（org.slf4j.impl.Log4jLoggerAdapter）。
+
+Slf4j 提供了统一的 Logger API ，每个日志框架（适配器）都会实现该API。在调用 Logger 时，Slf4j 会根据 ClassLoader 加载各框架的 StaticLoggerBinder，然后根据 StaticLoggerBinder 获取对应的 LoggerFactory 对象，再根据 LoggerFactory 创建 Logger 对象，所以调用 Logger 方法时，实际是调用各个框架 Logger 方法，这实际也是门面模式的一种实现。这就解释了为什么 SLf4j 能整合不同日志框架，实际 Slf4j 只是提供了一个接口规范，具体实现交给对应的日志框架实现。
+
+![适配器模式调用流程及类图](./images/dependency/适配器模式调用流程及类图.png)
+
+![Log4jLoggerAdapter源码](./images/dependency/Log4jLoggerAdapter源码.png)
+
+
+
+### 5.6.4 日志切换
 
 假设自己的应用使用了 Slf4j + Logback，但依赖的第三方 jar 使用的是 Log4j，此时如何桥接到 Slf4j 并进行统一管理呢？**首先需要排除 Log4j 对应的日志实现，然后引入对应的桥接器，其它类型的第三方 jar 处理与之类似**。
-
-* slf4j-log4j12：与 Log4j 联合使用，用于使当前项目的 Log4j 实现 Slf4j 标准。
-* log4j-slf4j-impl：与 Log4j2 联合使用，用于使当前项目的 Log4j2 实现 Slf4j 标准。
-* slf4j-jdk14：与 JUL 联合使用，，用于使当前项目的 JUL 实现 Slf4j 标准。
-* log4j-over-slf4j：与剔除 Log4j 联合使用，用于让单独用 Log4j 的依赖能遵循 Slf4j，进而统一日志配置。
-* log4j-to-slf4j：与剔除 Log4j2 联合使用，用于让单独用 Log4j2 的依赖能遵循 Slf4j，进而统一日志配置。
-* jul-to-slf4j：与剔除 JUL 联合使用，用于让单独用 JUL 的依赖能遵循 Slf4j，进而统一日志配置。
 
 ![日志切换](./images/dependency/日志切换.png)
 
@@ -1054,7 +1115,7 @@ public class Slf4jDemo {
         </exclusion>
     </exclusions>
 </dependency>
-<!-- 引入桥接器，注意桥接器优先级一定要高于Log4j，且第三方包不应该有日志配置文件 -->
+<!-- 引入桥接器，注意桥接器优先级一定要高于Log4j（即引入的桥接器依赖位于第三方依赖前面，或排除第三方依赖），且第三方包不应该有日志配置文件 -->
 <dependency>
     <groupId>org.slf4j</groupId>
     <artifactId>log4j-over-slf4j</artifactId>
@@ -1074,7 +1135,6 @@ public class Slf4jDemo {
         LOGGER.warn("warn");
         LOGGER.error("error");
 
-        System.out.println("-----------");
         Log4jOther.test();
     }
 }
@@ -1082,11 +1142,88 @@ public class Slf4jDemo {
 
 
 
+### 5.6.5 桥接器原理
+
+以 Log4j-over-slf4j 桥接器为例，它实际定义了一套和 Log4j 一样的 API（**包名、类名、方法定义相同**，这也是为什么需要在 POM 文件中排除原有依赖的原因），在这套 API 中调用 Slf4j 的 API，从而实现偷天换日的效果，即披着 Log4j 的外衣，做着 Slf4j 的事情。
+
+![桥接器原理1](./images/dependency/桥接器原理1.png)
+
+![桥接器原理2](./images/dependency/桥接器原理2.png)
 
 
 
+# 6. picocli
+
+## 6.1 简介
+
+picocli 是一个单文件命令行解析框架，几乎不需要任何代码即可创建命令行应用程序，它支持多种命令行语法风格，包括 POSIX、GNU、MS-DOS 等。
+
+```xml
+<dependency>
+    <groupId>info.picocli</groupId>
+    <artifactId>picocli</artifactId>
+    <version>4.6.3</version>
+</dependency>
+```
+
+参考：[官网](https://picocli.info/)、[picocli-入门](https://blog.csdn.net/it_freshman/article/details/125458116)
 
 
+
+## 6.2 常见注解
+
+命令行参数可以分为选项（options）和位置参数（positional parameters），选项有一个名称，位置参数通常是选项后面的值，但它们可能是混合的。
+
+![选项和参数](./images/dependency/选项和参数.png)
+
+1. **@CommandLine.Option**：选项，一个选项必须有一个或多个 names，默认情况下，选项名称区分大小写
+2. **@CommandLine.Parameters**：位置参数，任何不是子命令或选项的命令行参数都被解释为位置参数，位置参数通常跟在选项后面。使用 index 属性来准确指定要捕获的参数（从零开始），数组或集合字段可以捕获多个值。
+3. **@CommandLine.ArgGroup**：一组相互排斥的选项和位置参数，
+
+
+
+## 6.3 Demo
+
+```java
+@CommandLine.Command(name = "rename", mixinStandardHelpOptions = true,
+        version = "1.0", description = "rename directory or file")
+public class RenameCommand implements Callable<Integer> {
+		// 一组相互排斥的选项和位置参数，multiplicity = "1"表示该组必须出现一次，默认"0..1"
+    @CommandLine.ArgGroup(multiplicity = "1")
+    private FileOrDirectoryExclusiveOption fileOrDirectoryExclusiveOption;
+
+  	// 布尔选项，usageHelp = true显示使用帮助消息
+    @CommandLine.Option(names = {"--help"}, usageHelp = true, description = "show help message and exit")
+    public static Boolean help = false;
+
+    // 布尔选项，hidden = true设置选项不显示到help信息中
+    @CommandLine.Option(names = {"-e", "--exec"}, hidden = true, description = {"perform the update operation instead of checking"})
+    public static Boolean exec = false;
+
+  	// 位置参数，使用index属性来准确指定要捕获的参数
+    @CommandLine.Parameters(index = "0...*", description = "src & dst file relative path if single operation, otherwise, local file absolute path")
+    private static List<String> params;
+
+    static class FileOrDirectoryExclusiveOption {
+        @CommandLine.Option(names = {"-f", "--file"}, description = {"rename file"})
+        public static Boolean file = false;
+
+        @CommandLine.Option(names = {"-d", "--directory"}, description = {"rename directory"})
+        public static Boolean directory = false;
+    }
+
+    @Override
+    public Integer call() throws Exception {
+				// 业务逻辑...
+        return 1;
+    }
+  
+  	public static void main(String[] args) {
+      	int exitCode = new CommandLine(new RenameCommand()).execute(args);
+      	System.exit(exitCode);
+    }
+}
+```
 
 
 

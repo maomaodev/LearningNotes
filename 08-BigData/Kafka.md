@@ -826,7 +826,7 @@ while (assignment.size() == 0) {
     assignment = consumer.assignment();
 }
 
-// 以下代码相当于：consumer.seekToBeginning(set);
+// 以下代码相当于：consumer.(set);
 Map<TopicPartition, Long> map = consumer.endOffsets(set);
 for (TopicPartition tp : assignment) {
     // seek()参数依次为：分区、从分区的哪个位置开始消费
@@ -1413,7 +1413,7 @@ start.time, end.time, data.consumed.in.MB, MB.sec, data.consumed.in.nMsg, nMsg.s
 
 ![日志关系](./images/Kafka/日志关系.png)
 
-每个分区 Log 对应了一个命名为 <topic\>-<partition\> 的文件夹。向 Log 中追加消息时时顺序写入的，只有最后一个 LogSegment 才能执行写入操作，随着消息的不断写入，当满足一定条件时，就会创建新的 LogSegment，之后追加的消息将写入新的 LogSegment。
+每个分区 Log 对应了一个命名为 <topic\>-<partition\> 的文件夹。向 Log 中追加消息时是顺序写入的，只有最后一个 LogSegment 才能执行写入操作，随着消息的不断写入，当满足一定条件时，就会创建新的 LogSegment，之后追加的消息将写入新的 LogSegment。
 
 **为了提高消息检索的效率，每个 LogSegment 中的日志文件都有对应的两个索引文件（以 .log 为文件后缀）：偏移量索引文件（以 .index 为文件后缀）和时间戳索引文件（以 .timeindex 为文件后缀）**。每个 LogSegment 都有一个基准偏移量 baseOffset，用来表示当前 LogSegment 中第一条消息的 offset。偏移量是一个 64 位的长整型数，日志文件和两个索引文件都是根据 baseOffset 命令的，名称固定为 20 位数字，没有达到的位数则用 0 填充。
 
