@@ -1306,7 +1306,7 @@ case class Count(children: Seq[Expression]) extends DeclarativeAggregate {
 聚合查询最终执行有两种方式：**基于排序的聚合执行方式（SortAggregateExec）与基于 Hash 的聚合执行方式（HashAggregateExec）**。在后续版本中，又加入了 ObjectHashAggregateExec 执行方式（SPARK-17949）。常见的聚合查询语句通常采用 HashAggregate 方式，当存在以下几种情况时，会用 SortAggregate 方式。
 
 * 查询中存在不支持 Partial 方式的聚合函数：此时会调用 AggUtils 中的 planAggregateWithoutPartial方法，直接生成 SortAggregateExec 聚合算子节点。
-* 聚合函数结果不支持 Buffer方式：如果结果类型不属于 [NullType, BooleanType, ByteType, ShortType,  IntegerType, LongType, FloatType, DoubleType, DateType, TimestampType, DecimalType] 集合中的任意一种，则需要执行 SortAggregateExec 方式，例如 collect_ set 和 collect_list 函数。
+* 聚合函数结果不支持 Buffer 方式：如果结果类型不属于 [NullType, BooleanType, ByteType, ShortType,  IntegerType, LongType, FloatType, DoubleType, DateType, TimestampType, DecimalType] 集合中的任意一种，则需要执行 SortAggregateExec 方式，例如 collect_ set 和 collect_list 函数。
 * 内存不足：若在 HashAggregate 执行过程中，内存空间已满，则会切换到 SortAggregateExec 方式。
 
 ![聚合执行](./images/SparkSQL/聚合执行.png)

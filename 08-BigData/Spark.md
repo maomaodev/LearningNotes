@@ -1431,7 +1431,7 @@ mappedRDD.unpersist()
 
 ### 6.1.2 重新计算从哪开始
 
-如图所示，stage0 和 stage1中的 task 的输入数据来自分布式文件系统，这些 task 在重新计算时，直接读取分布式文件系统上的数据计算即可。而下游 stage2 中的 task 的输入数据是通过 Shuffle Read 读取上游 stage 输出数据的，此时 **Spark 采用了“延时删除 策略”，即将上游 stage 的 Shuffle Write 的结果写入本地磁盘，只有在当前 job 完成后，才删除 Shuffle Write 写入磁盘的数据**。
+如图所示，stage0 和 stage1中的 task 的输入数据来自分布式文件系统，这些 task 在重新计算时，直接读取分布式文件系统上的数据计算即可。而下游 stage2 中的 task 的输入数据是通过 Shuffle Read 读取上游 stage 输出数据的，此时 **Spark 采用了“延时删除策略”，即将上游 stage 的 Shuffle Write 的结果写入本地磁盘，只有在当前 job 完成后，才删除 Shuffle Write 写入磁盘的数据**。
 
 ![重新计算从哪开始](./images/Spark/重新计算从哪开始.png)
 
@@ -1465,7 +1465,7 @@ result.foreach(println)
 
 查看应用生成的 job 信息，会发现实际生成了 3 个 job。假设 checkpoint 仍然采用类似缓存机制的计算顺序，即每计算出一个 record， 就将其持久化到分布式文件系统 HDFS 上，等所有 record 持久化完毕后，再从 HDFS 上读取 record 进行计算。这种方案效率很低，checkpoint 将数据持久化到分布式文件系统 HDFS 时需要写入磁盘，且一般需要复制 3 份进行跨节点存储，写入时延高，同时后续操作需要从 HDFS 中读取数据，这将会严重影响 job 的执行时间，造成很高的磁盘 I/O 代价。
 
-Spark 采用的方案是：**用户设置 rdd.checkpoint() 后只标记某个 RDD 需要持久化，计算过程也像正常一样计算，等到当前 job 计算结束时再重新启动该 job 计算 一遍，对其中需要 checkpoint 的 RDD 进行持久化**。也就是说，当前 job 结束后会另外启动专门的 job 去完成 checkpoint，需要 checkpoint 的 RDD 会被计算两次。为了减少 checkpoint 启动额外 job 的计算开销，Spark 推荐用户将需要被 checkpoint 的数据先进行缓存， 这样额外启动的任务只需要将缓存数据进行 checkpoint 即可，不需要再重新计算 RDD。
+Spark 采用的方案是：**用户设置 rdd.checkpoint() 后只标记某个 RDD 需要持久化，计算过程也像正常一样计算，等到当前 job 计算结束时再重新启动该 job 计算一遍，对其中需要 checkpoint 的 RDD 进行持久化**。也就是说，当前 job 结束后会另外启动专门的 job 去完成 checkpoint，需要 checkpoint 的 RDD 会被计算两次。为了减少 checkpoint 启动额外 job 的计算开销，Spark 推荐用户将需要被 checkpoint 的数据先进行缓存， 这样额外启动的任务只需要将缓存数据进行 checkpoint 即可，不需要再重新计算 RDD。
 
 
 

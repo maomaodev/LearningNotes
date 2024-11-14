@@ -8,7 +8,7 @@ Kafka 采用 Scala 语言开发，**是一个多分区、多副本且基于 Zook
 * **存储系统**：由于 Kafka 的**消息持久化功能和多副本机制**，可以将其作为长期的数据存储系统来使用，只需把数据保留策略设置为“永久”或启用主题的日志压缩功能。
 * **流式处理平台**：Kafka 为流式处理框架提供了**可靠的数据来源和完整的流式处理类库**，比如窗口、连接、变换和聚合等各类操作。
 
-一个典型的 Kafka 体系结构包括**若干 Producer、Broker、Consumer，以及一个 Zookeeper 集群**。其中 Zookeeper 是 Kafka 用来负责集群元数据的管理、控制器的选举等操作。Producer 将会消息发送到 Broker，Broker 负责将收到的消息存储到磁盘中，而 Consumer 负责从 Broker 订阅并消费消息。
+一个典型的 Kafka 体系结构包括**若干 Producer、Broker、Consumer，以及一个 Zookeeper 集群**。其中 Zookeeper 是 Kafka 用来负责集群元数据的管理、控制器的选举等操作。Producer 会将消息发送到 Broker，Broker 负责将收到的消息存储到磁盘中，而 Consumer 负责从 Broker 订阅并消费消息。
 
 ![Kafka体系结构](./images/Kafka/Kafka体系结构.png)
 
