@@ -120,10 +120,10 @@ public boolean add(E e) {
 
 
 
-## 6. comparable 和 Comparator的区别
+## 6. Comparable 和 Comparator的区别
 
-- comparable 接口出自 java.lang 包 ，它有一个 `compareTo(T o)`方法自然排序
-- comparator 接口出自 java.util 包，它有一个`compare(T o1, T o2)`方法定制排序
+- Comparable 接口出自 java.lang 包 ，它有一个 `compareTo(T o)`方法自然排序
+- Comparator 接口出自 java.util 包，它有一个`compare(T o1, T o2)`方法定制排序
 
 ```java
 public interface Comparable<T> {
