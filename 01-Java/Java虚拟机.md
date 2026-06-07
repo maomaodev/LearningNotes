@@ -708,13 +708,13 @@ Arthas 是一款线上监控诊断产品，通过全局视角实时查看应用 
 
 ## 4.3 分析 GC 日志
 
-![Young GC](./images/Java虚拟机/Young GC.png)
+![Young GC](<./images/Java虚拟机/Young GC.png>)
 
 ```
 2016-07-05T10:43:18.093+0800: 25.395: [GC [PSYoungGen: 274931K->10738K(274944K)] 371093K->147186K(450048K), 0.0668480 secs] [Times: user=0.17 sys=0.08, real=0.07 secs]
 ```
 
-![Full GC](./images/Java虚拟机/Full GC.png)
+![Full GC](<./images/Java虚拟机/Full GC.png>)
 
 ```
 2016-07-05T10:43:18.160+0800: 25.462: [Full GC [PSYoungGen: 10738K->0K(274944K)] [ParOldGen: 136447K->140379K(302592K)] 147186K->140379K(577536K) [PSPermGen: 85411K->85376K(171008K)], 0.6763541 secs] [Times: user=1.75 sys=0.02, real=0.68 secs]

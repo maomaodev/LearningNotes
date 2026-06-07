@@ -236,13 +236,13 @@ SparkContext
 
 注意：**SparkSubmit、ApplicationMaster 和 CoarseGrainedExecutorBackend（YarnCoarseGrainedExecutorBackend） 是独立的进程；Driver是独立的线程；Executor 和 YarnClusterApplication 是对象**。
 
-![Spark Yarn Cluster提交示意图](./images/Spark Yarn Cluster提交示意图.png)
+![Spark Yarn Cluster提交示意图](<./images/Spark Yarn Cluster提交示意图.png>)
 
 总结 2：spark-submit yarn client 提交过程如下图所示。client 与 cluster 主要区别：cluster 模式 Driver 位于集群内部，是个线程；client 模式 Driver 位于本地，仅是个对象。
 
 注意：**SparkSubmit、ExecutorLauncher（ApplicationMaster） 和 CoarseGrainedExecutorBackend（YarnCoarseGrainedExecutorBackend） 是独立的进程；Executor 和 Driver 是对象**。
 
-![Spark Yarn Client提交示意图](./images/Spark Yarn Client提交示意图.png)
+![Spark Yarn Client提交示意图](<./images/Spark Yarn Client提交示意图.png>)
 
 
 
@@ -283,7 +283,65 @@ Spark 通信架构基于 Netty RPC 框架实现（位于 `core/src/main/scala/or
 | `Outbox` : `TransportClient`                   | **1 : 1**                         | `Outbox.client` 字段，按需异步建连后复用                |
 | 进程内 `RpcEndpoint` 数 : `TransportServer` 数 | **N : 1**                         | 多 Endpoint 共享一个监听端口，按 `receiver.name` 路由   |
 
-![通信架构](./images/通信架构.png)
+```mermaid
+flowchart TB
+    subgraph PA["Process A · RpcEnv · RpcAddress=host_a:port_a"]
+        direction TB
+        subgraph PA_EP["RpcEndpoints, 共用同一 RpcAddress, 由 name 区分"]
+            direction TB
+            EPA1["Endpoint: Executor"]:::ep
+            EPA2["Endpoint: BlockManagerEndpoint"]:::ep
+            EPA3["Endpoint: HeartbeatReceiver"]:::ep
+        end
+        subgraph PA_INBOX["每个 Endpoint 一个 Inbox, 由 MessageLoop 驱动"]
+            direction TB
+            IN1[(Inbox-Executor)]:::inbox
+            IN2[(Inbox-BM)]:::inbox
+            IN3[(Inbox-HB)]:::inbox
+        end
+        DISP["Dispatcher<br/>endpoints: name to MessageLoop<br/>按 receiver.name 派件"]:::core
+        TS["TransportServer<br/>进程级单例, 监听 port_a"]:::core
+
+        subgraph PA_OUT["按对端 RpcAddress 维度的 Outbox, 与 Endpoint 数量无关"]
+            direction TB
+            OUTB["Outbox to ProcessB<br/>host_b:port_b"]:::outbox
+            OUTC["Outbox to ProcessC<br/>host_c:port_c"]:::outbox
+        end
+        TCB["TransportClient to ProcessB"]:::client
+        TCC["TransportClient to ProcessC"]:::client
+
+        IN1 -->|drives| EPA1
+        IN2 -->|drives| EPA2
+        IN3 -->|drives| EPA3
+        OUTB -->|owns| TCB
+        OUTC -->|owns| TCC
+    end
+
+    EXT(["远端进程发来的字节流"]):::ext
+    PB[("Process B<br/>TransportServer<br/>host_b:port_b")]:::ext
+    PC[("Process C<br/>TransportServer<br/>host_c:port_c")]:::ext
+
+    %% 收消息链路: 外部字节流 -> TS -> Dispatcher -> 按 name 路由到 Inbox
+    EXT -->|RX 1| TS
+    TS -->|RX 2 postRemoteMessage| DISP
+    DISP -->|RX 3 name=Executor| IN1
+    DISP -->|RX 3 name=BlockManagerEndpoint| IN2
+    DISP -->|RX 3 name=HeartbeatReceiver| IN3
+
+    %% 发消息链路: Endpoint -> ref.send/ask -> 按对端 RpcAddress 找 Outbox -> TransportClient -> 对端
+    EPA1 -->|TX 1 ref.send/ask| OUTB
+    EPA2 -->|TX 1 ref.send/ask| OUTC
+    EPA3 -->|TX 1 ref.send/ask| OUTB
+    TCB -->|TX 2 sendRpc/send| PB
+    TCC -->|TX 2 sendRpc/send| PC
+
+    classDef ep fill:#e8f4ff,stroke:#3b82f6,color:#1e3a8a,stroke-width:1px;
+    classDef inbox fill:#fff7ed,stroke:#f97316,color:#7c2d12;
+    classDef outbox fill:#eff6ff,stroke:#2563eb,color:#1e3a8a;
+    classDef client fill:#ecfeff,stroke:#0891b2,color:#155e75;
+    classDef core fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
+    classDef ext fill:#f3f4f6,stroke:#6b7280,color:#111827;
+```
 
 注 1：**`RX 1/2/3`** 标识"收消息链路"的先后顺序（外部字节流 → `TransportServer` → `Dispatcher` → 按 name 投递到对应 `Inbox` → `MessageLoop` 驱动 Endpoint 处理）；**`TX 1/2`** 标识"发消息链路"（`Endpoint` 通过 `RpcEndpointRef` → 按对端 `RpcAddress` 找 `Outbox` → `TransportClient` → 对端 `TransportServer`）。重点关注三个"共用"：
 
@@ -291,7 +349,7 @@ Spark 通信架构基于 Netty RPC 框架实现（位于 `core/src/main/scala/or
 - 共用同一个 `TransportServer`（进程级单例端口）；
 - 共用同一个 `Dispatcher`（按 `receiver.name` 路由）。而 `Outbox` 是按对端 `RpcAddress` 划分的，`Executor` 和 `HeartbeatReceiver` 都给进程 B 发消息时，复用同一个 `Outbox`，并不会因为是不同 Endpoint 就开两个 Outbox。
 
-注 2：收发链路如下：
+注 2：消息收发链路如下：
 
 - **收消息**：`TransportServer` → `NettyRpcHandler.receive` → `Dispatcher.postRemoteMessage` → 目标 Endpoint 的 `Inbox` → `MessageLoop.process` → `endpoint.receive / receiveAndReply`。
 - **发消息（跨进程）**：`RpcEndpointRef.send/ask` → `NettyRpcEnv.postToOutbox` → 目标 `RpcAddress` 对应的 `Outbox` → `TransportClient.send / sendRpc` → 对端 `TransportServer`，**本端不经过 `Dispatcher`**。
@@ -301,9 +359,9 @@ Spark 通信架构基于 Netty RPC 框架实现（位于 `core/src/main/scala/or
 
 ## 2.2 源码分析
 
-下面结合源码进一步说明 RpcEndpoint 的注册、消息收发流程。**核心是：每个 RpcEndpoint 注册时，Dispatcher 都会为其创建一个 Inbox 并放入 MessageLoop 中循环消费；远程消息经 TransportServer 接收后由 Dispatcher 投递到对应 Inbox；本地发送的消息则通过 RpcEndpointRef 写入 Outbox，由 TransportClient 推送到对端**。
+下面结合源码进一步说明 RpcEndpoint 注册、消息接收、消息发送流程。核心是：**每个 RpcEndpoint 注册时，Dispatcher 都会为其创建一个 Inbox 并放入 MessageLoop 中循环消费；远程消息经 TransportServer 接收后由 Dispatcher 投递到对应 Inbox；本地发送的消息则通过 RpcEndpointRef 写入 Outbox，由 TransportClient 推送到对端**。过程中各角色作用是：**Inbox 与 Endpoint 一一对应，处理"我收到的"消息；Outbox 与远端地址一一对应，处理"我要发出的"消息；Dispatcher 是收件总枢纽（决定消息进哪个 Inbox），TransportClient/TransportServer 则是底层 Netty 通道**。
 
-1、注册 RpcEndpoint 源码如下。
+1、RpcEndpoint 注册源码如下。**注册过程生成了 3 个 ConcurrentMap：①  endpointRefs 类型为 ConcurrentMap[RpcEndpoint, RpcEndpointRef]，维护 RpcEndpoint 与 RpcEndpointRef 的映射关系；② endpoints 类型为 ConcurrentHashMap[String, Inbox]，维护 EndpointName 与 Inbox 的映射关系；③ endpoints（与前面同名，但作用不同）类型为 ConcurrentMap[String, MessageLoop]，维护 EndpointName 与 MessageLoop 的映射关系**。
 
 ```scala
 // 继承关系：NettyRpcEnv -> RpcEnv
@@ -315,7 +373,7 @@ NettyRpcEnv
       // 1.构造该Endpoint的引用RpcEndpointRef，含地址RpcEndpointAddress
       val addr = RpcEndpointAddress(nettyEnv.address, name)
       val endpointRef = new NettyRpcEndpointRef(nettyEnv.conf, addr, nettyEnv)
-      // endpointRefs类型为ConcurrentMap，维护RpcEndpoint与RpcEndpointRef的映射关系
+      // endpointRefs类型为ConcurrentMap[RpcEndpoint, RpcEndpointRef]，维护RpcEndpoint与RpcEndpointRef的映射关系
       endpointRefs.put(endpoint, endpointRef)
 
       // 2.根据是否实现IsolatedRpcEndpoint，决定使用独占/共享MessageLoop
@@ -328,15 +386,16 @@ NettyRpcEnv
           threadpool.execute(receiveLoopRunnable)
         // 2.2 普通Endpoint共享同一个消息循环（SharedMessageLoop内部按endpointName路由到不同Inbox）
         case _ => sharedLoop.register(name, endpoint)
-          // endpoints类型为ConcurrentHashMap，维护EndpointName与Inbox的映射关系
+          // endpoints类型为ConcurrentHashMap[String, Inbox]，维护EndpointName与Inbox的映射关系
           private val endpoints = new ConcurrentHashMap[String, Inbox]()
           // receiveLoopRunnable来自父类MessageLoop，见下面分析
           pool.execute(receiveLoopRunnable)
-      // endpoints（与上面相名，但作用不同）类型为ConcurrentMap，维护EndpointName与MessageLoop的映射关系
+      // endpoints（与前面同名，但作用不同）类型为ConcurrentMap[String, MessageLoop]，
+      // 维护EndpointName与MessageLoop的映射关系
       endpoints.put(name, messageLoop)
 ```
 
-2、消息接收和处理源码如下。
+2、消息接收和处理源码如下。调用链是：**接收端 `TransportServer` → `NettyRpcHandler.receive` → `Dispatcher.postRemoteMessage` → `Inbox.post` → `MessageLoop` 处理 → `endpoint.receiveAndReply`**。
 
 ```scala
 // 继承关系：DedicatedMessageLoop、SharedMessageLoop -> MessageLoop
@@ -400,7 +459,7 @@ TransportServer
                         inbox.post(message)
 ```
 
-3、消息发送源码如下。
+3、消息发送源码如下。**一个典型的远端 send 调用链是：发送端 `RpcEndpointRef.send` → `Outbox.send` → `TransportClient.sendRpc` → 接收端 `TransportServer` → `NettyRpcHandler.receive` → `Dispatcher.postRemoteMessage` → `Inbox.post` → `MessageLoop` 处理 → `endpoint.receiveAndReply`**。
 
 ```scala
 // 继承关系：NettyRpcEndpointRef -> RpcEndpointRef
@@ -432,8 +491,6 @@ NettyRpcEndpointRef
                 client.sendRpc(content, this)
               message = messages.poll()
 ```
-
-总结：**Inbox 与 Endpoint 一一对应，处理"我收到的"消息；Outbox 与远端地址一一对应，处理"我要发出的"消息；Dispatcher 是收件总枢纽（决定消息进哪个 Inbox），TransportClient/TransportServer 则是底层 Netty 通道**。一个典型的远端 send 调用链是：发送端 `RpcEndpointRef.send` → `Outbox.send` → `TransportClient.sendRpc` → 接收端 `TransportServer` → `NettyRpcHandler` → `Dispatcher.postRemoteMessage` → `Inbox.post` → `MessageLoop` 处理 → `endpoint.receiveAndReply`。
 
 
 

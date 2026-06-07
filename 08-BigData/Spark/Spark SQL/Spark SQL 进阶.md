@@ -596,7 +596,7 @@ AstBuilder
 
 2、在 Analyzer 中，与 Join 相关的解析规则有很多，包括 ResolveRelations、ResolveReferences、ResolveNaturalAndUsingJoin 等，最终生成的 Analyzed LogicalPlan 如下图（右）所示。其中，**ResolveRelations 规则**从 Catalog 中找到 student 和 exam 的基本信息，包括数据表存储格式、每一列列名和数据类型等。**ResolveReferences 规则**自底向上的解析所有列信息，将所有 UnresolvedAttribute 与 UnresolvedExtractValue 类型的表达式转换成对应的列信息。ResolveNaturalAndUsingJoin 规则（实际未使用）将 NATUAL 或 USING 类型的 Join 转换为普通的 Join。Natual Join 指的是在正常 Join 前面可以加 NATUAL 关键字，此时不用写 ON 条件，Spark 会自动获取 Join 的 Left 和 Right 的输出字段，然后使用公共的字段构建 Join；Using Join 指的是如果 Join 条件中的字段名相同，可以使用 `USING (col1, col2)` 替代 `ON left.col1 = right.col1 AND left.col2 = right.col2`。
 
-![Join Analyzed LogicalPlan](./images/Join Analyzed LogicalPlan.png)
+![Join Analyzed LogicalPlan](<./images/Join Analyzed LogicalPlan.png>)
 
 ```scala
 // 将未解析的relations（表和视图）替换为catalog中的具体relations
@@ -628,7 +628,7 @@ ResolveReferences
 
 3、在 Optimizer 中，生成的 Optimized LogicalPlan 如下图所示。第一步，**EliminateSubqueryAliases 规则**将 SubqueryAlias(_*,* child*, _*）节点直接替换为 child 节点，即 Relation 原来的 SubqueryAlias 父节点被移除，Join 成为 Relation 的父节点。第二步，由于父节点只需要用到两个数据表中的 4 列，因此 **ColumnPruning 规则**在 Relation 节点之后添加新的 Project 节点进行列裁剪操作。第三步，对于 Join 来讲，其连接条件需要保证两边的列都不为 null，因此会触发 **InferFitersFromConstraints 规则**，Join 算子中的连接条件多了两个，分别约束 student 表中的 Id 和 exam 表中的 studentId 不为 null。第四步，由于 Join 节点多了两个条件判定列不为 null，这两个条件只涉及单个数据表，因此 **PushPredicateThroughJoin 规则**可以将其下推到子节点，尽早过滤数据，Join 中的两个连接条件生成了对应的两个 Filter 节点。第五步，一般来讲，优化阶段会将过滤条件尽可能地下推，因此逻辑算子树中的 Filter 节点还会被继续处理，**PushDownPredicate 规则**将 Filter 节点下推至 Project 节点之下。至此，整个逻辑算子树的优化工作完成。
 
-![Join Optimized LogicalPlan](./images/Join Optimized LogicalPlan.png)
+![Join Optimized LogicalPlan](<./images/Join Optimized LogicalPlan.png>)
 
 
 
@@ -755,7 +755,7 @@ JoinSelection
 
 **其他说明**：当广播表较小时，BHJ 通常比其他连接策略执行速度更快，因为它可以避免数据 Shuffle。然而，广播表是一种网络密集型操作，在某些情况下可能导致 OOM 或性能不佳，特别是在构建表/广播表较大时。
 
-![Broadcast hash join](./images/Broadcast hash join.png)
+![Broadcast hash join](<./images/Broadcast hash join.png>)
 
 ```scala
 // 继承关系：BroadcastHashJoinExec -> HashJoin -> JoinCodegenSupport -> CodegenSupport、BaseJoinExec -> SparkPlan
@@ -792,7 +792,7 @@ BroadcastHashJoinExec
 
 **其他说明**：从表中构建 hash map 是一种内存密集型操作，当构建侧较大时可能会导致 OOM
 
-![Shuffle hash join](./images/Shuffle hash join.png)
+![Shuffle hash join](<./images/Shuffle hash join.png>)
 
 ```scala
 // 继承关系：ShuffledHashJoinExec -> HashJoin、ShuffledJoin -> JoinCodegenSupport -> CodegenSupport、BaseJoinExec -> SparkPlan
@@ -821,7 +821,7 @@ ShuffledHashJoinExec
 
 **其他说明**：Shuffle hash join 将一侧的数据完全加载到内存，这对于小表比较适用。然而，当两个表的数据量都非常大时，会对内存造成很大压力，此时 Spark 会采用 SMJ，这也是大多数连接采用的策略
 
-![Shuffle sort merge join](./images/Shuffle sort merge join.png)
+![Shuffle sort merge join](<./images/Shuffle sort merge join.png>)
 
 ```scala
 // 继承关系：SortMergeJoinExec -> ShuffledJoin -> JoinCodegenSupport -> CodegenSupport、BaseJoinExec -> SparkPlan
@@ -869,7 +869,7 @@ SortMergeJoinExec
 
 **限制条件**：①**支持等值连接和非等值连接，仅支持 Inner、Cross 连接类型**
 
-![Cartesian Product Join](./images/Cartesian Product Join.png)
+![Cartesian Product Join](<./images/Cartesian Product Join.png>)
 
 ```scala
 // 继承关系：CartesianProductExec -> BaseJoinExec -> BinaryExecNode -> SparkPlan、BinaryLike
@@ -904,7 +904,7 @@ CartesianProductExec
 
 **限制条件**：①**支持等值连接和非等值连接，支持所有连接类型**，但实现针对以下情况进行了小表广播优化，以减少表的扫描次数：在 RightOuter 中广播左侧；在 LeftOuter、LeftSemi、LefAnti 中广播右侧；在 Inner、Cross 中广播任一侧。对于其他情况，需要多次扫描数据，这可能会导致较慢的执行速度
 
-![Broadcast nested loop join](./images/Broadcast nested loop join.png)
+![Broadcast nested loop join](<./images/Broadcast nested loop join.png>)
 
 ```scala
 // 继承关系：BroadcastNestedLoopJoinExec -> JoinCodegenSupport -> CodegenSupport、BaseJoinExec -> SparkPlan
@@ -1135,11 +1135,11 @@ HiveAnalysis
 
 **1、FileOutputCommitter V1 文件提交机制：**需要经历两次 Rename 过程，每个 Task 先将数据写入到 Task 临时目录：`{finalTargetDir}/_temporary/{appAttemptId}/_temporary/{taskAttemptId}/`。等到 Task 完成数据写入后，执行 commitTask 方法做第一次 Rename，将数据文件从 Task 临时目录移动到 Task 最终输出目录：`{finalTargetDir}/_temporary/{appAttemptId}/{taskId}/`。最后，当所有 Task 都执行完 commitTask 方法后，由 Driver 负责执行 commitJob 方法做第二次 Rename，依次将 Job 临时目录下的各个 Task 目录中的数据文件，移动到 Job 最终输出目录：`{finalTargetDir}/`。
 
-![FileOutputCommitter V1](./images/FileOutputCommitter V1.png)
+![FileOutputCommitter V1](<./images/FileOutputCommitter V1.png>)
 
 2、**FileOutputCommitter V2 文件提交机制：**只需要经历一次 Rename 过程，每个 Task 先将数据写入到 Task 临时目录：`{finalTargetDir}/_temporary/{appAttemptId}/_temporary/{taskAttemptId}/`。等到 Task 完成数据写入后，执行 commitTask 方法做一次 Rename，将数据文件从 Task 临时目录移动到 Job 最终输出目录：`{finalTargetDir}/`。最后，当所有 Task 都执行完 commitTask 方法后，由 Driver 负责执行 commitJob 方法，此时不需要做 Rename，只需要创建 _SUCCESS 标识文件，因为数据文件在 Task 执行完后就已经移动到 Job 最终输出目录了。
 
-![FileOutputCommitter V2](./images/FileOutputCommitter V2.png)
+![FileOutputCommitter V2](<./images/FileOutputCommitter V2.png>)
 
 **FileOutputCommitter V1 和 V2 版本对比**：**V2 性能强于 V1，但 V1 数据一致性强于 V2，必要时根据场景进行选择**。
 

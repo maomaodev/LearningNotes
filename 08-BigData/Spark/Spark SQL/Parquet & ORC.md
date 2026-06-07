@@ -540,7 +540,7 @@ ORC 包含两种来自 SQL 领域的不同时间戳形式：
 
 # 3. Parquet vs. ORC
 
-![parquet文件元数据](./images/parquet & orc文件格式.png)
+![parquet文件元数据](<./images/parquet & orc文件格式.png>)
 
 |              | Parquet                             | ORC                                    |
 | ------------ | :---------------------------------- | :------------------------------------- |

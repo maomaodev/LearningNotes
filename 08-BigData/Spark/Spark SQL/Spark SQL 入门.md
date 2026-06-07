@@ -261,7 +261,7 @@ SparkSession
 
 总的来看，AstBuilder 生成 Unresolved LogicalPlan 的过程如图所示，从 RegularQuerySpecificationContext 节点开始，分为以下 3 个步骤：
 
-![AstBuilder 生成 Unresolved LogicalPlan](./images/AstBuilder 生成 Unresolved LogicalPlan.png)
+![AstBuilder 生成 Unresolved LogicalPlan](<./images/AstBuilder 生成 Unresolved LogicalPlan.png>)
 
 - **生成数据表对应的 LogicalPlan**：对应 SQL 中 from 语句，访问 FromClauseContext 并递归访问（visitFromClause），一直到匹配 TableNameContext 节点（visitTableName）时，直接生成 UnresolvedRelation，此时不再继续递归访问子节点，构造名为 from 的 LogicalPlan 并返回。
 - **生成加入了过滤逻辑的 LogicalPlan**：对应 SQL 中 where 语句， 访问 WhereClauseContext 并递归访问（visitWhereClause)，下表按照子节点为先顺序，列出了构造 Filter 逻辑算子树节点中的 condition 表达式，其树型结构如上图（左）所示。当执行 visitColumnReference 时，会根据 ColumnReferenceContext 节点信息生成 UnresolvedAttribute 表达式，其中的常数会统一封装为 Literal 表达式。在 visitPredicated 中会检查该谓词逻辑中是否包含 predicate 语句（按照文法定义，predicate 主要表示 BETWEEN-AND、IN 和 LIKE/RLIKE 等语句），这里 SQL 不包含 predicate，因此直接返回访问其子节点（visitComparison）得到的结果，生成 Filter LogicalPlan 节点的 condition 构造参数为 GreaterThan 表达式。最后，由此 LogicalPlan 和上一步中的 UnresolvedRelation 构造名为 withFilter 的 LogicalPlan，其中 Filter 节点为根节点。
@@ -373,7 +373,7 @@ QueryExecution
 - 第 3 步，**调用 TypeCoercion 规则集中的 ImplicitTypeCasts 规则**，对表达式中的数据类型进行隐式转换。因为在 Relation 中，age 列的数据类型为 Long，而 Filter 中的数值 18 在 Unresolved LogicalPlan 中生成的类型为 IntegerType， 所以需要将 18 这个常数转换为 Long 类型。经过该规则的解析操作，Filter 节点变成了 Analyzed 状态（节点字符前缀字符单引号已经被去掉）。
 - 第 4 步，经过上述 3 个规则的解析后，剩下的规则对逻辑算子树不起作用，此时逻辑算子树中仍然存在 Project  节点未被解析，接下来会进行下一轮规则的应用。**再次执行 ResolveReferences 规则**，经过上一步 Filter 节点已经处于 resolved 状态，因此逻辑算子树中的 Project 节点能够完成解析。
 
-![Analyzer 生成 Analyzed LogicalPlan](./images/Analyzer 生成 Analyzed LogicalPlan.png)
+![Analyzer 生成 Analyzed LogicalPlan](<./images/Analyzer 生成 Analyzed LogicalPlan.png>)
 
 
 
@@ -450,7 +450,7 @@ QueryExecution
 - 第 2 步，**执行 InferFiltersFromConstraints 规则，用来增加过滤条件**。该规则会对当前节点的约束条件进行分析，生成额外的过滤条件列表，这些过滤条件不会与当前算子或其子节点现有的过滤条件重叠。如图所示，Filter 逻辑算子树节点中多了 isnotnull(age#0L) 这个过滤条件，该过滤条件来自于 Filter 中的约束信息，用来确保筛选出来的数据 age 字段不为 null。
 - 第 3 步，**执行 ConstantFolding 规则**，**对 LogicalPlan 中可以折叠的表达式进行静态计算直接得到结果**，**简化表达式**。如图所示，Filter 过滤条件中的 cast(18 as bigint) 表达式经过计算成为 Literal(18, bigint) 表达式，即输出的结果为 18。
 
-![Optimizer 生成 Optimized LogicalPlan](./images/Optimizer 生成 Optimized LogicalPlan.png)
+![Optimizer 生成 Optimized LogicalPlan](<./images/Optimizer 生成 Optimized LogicalPlan.png>)
 
 
 

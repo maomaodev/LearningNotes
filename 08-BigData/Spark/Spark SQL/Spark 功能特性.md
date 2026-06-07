@@ -473,7 +473,7 @@ set spark.sql.adaptive.coalescePartitions.minPartitionSize=10M;
 | 列（只存储于 TAB_COL_STATS 表）                              | spark.sql.statistics.colStats.[col_name].min、max、nullCount、distinctCount、avgLen、maxLen | 最小值、最大值、空值数、唯一值数、平均列长度、最大列长度     | 仅当使用 ANALYZE 命令时更新（需要加 FOR COLUMNS col 或 FOR ALL COLUMNS 关键字） |
 | spark.sql.statistics.[col_name].histogram                    | 等高直方图，表示列值按 bin 序列的分布。每个 bin 都有一个值范围，并且包含大约相同数量的行 | 仅当 spark.sql.statistics.histogram.enabled 开启（默认 false），并执行 ANALYZE 命令时更新（需要加 FOR COLUMNS col 或 FOR ALL COLUMNS 关键字） |                                                              |
 
-![Spark Statistics](./images/Spark Statistics.png)
+![Spark Statistics](<./images/Spark Statistics.png>)
 
 ```scala
 case class CatalogStatistics(
@@ -868,6 +868,6 @@ Spark 使用基于成本的优化（Cost-Based Optimization，CBO）收集表的
 
 Runtime Filter 是如何工作的呢？它首先找到 Broadcast Join 和有 Shuffle 操作的流侧（Stream Side）；然后根据 Join Key 收集构建侧（Build Side）的值，并为流侧生成动态过滤器。 最后，将此动态过滤器下推到数据源。Runtime Filter 的主要思想是减少数据的 Shuffle，因此它适用于图中的两种情况。注意，CBO 需要列统计信息，仅支持 Inner Join 和 Cross Join，而 Runtime Filter 只需要表数据大小，并且支持 Left Join、Right Join、Inner Join、Cross Join 和 Left Semi Join。
 
-![Bloom Filter](./images/Bloom Filter.png)
+![Bloom Filter](<./images/Bloom Filter.png>)
 
 **实际上，Runtime Filter 目前引入了两种不同的优化，分别是 Bloom Filter 和带有 IN 子查询的 Semi-Join Filter，分别对应配置 spark.sql.optimizer.runtime.bloomFilter.enabled（自 Spark 3.4 起默认为 true）和 spark.sql.optimizer.runtimeFilter.semiJoinReduction.enabled（默认为 false）**，未来，Runtime Filter 还可能是其他形式的过滤器。为什么有了 Bloom Filter，还需要 Semi-Join Filter 呢？这是因为 **Bloom Filter 有假阳性的问题，即当 Bloom Filter 说某个值存在时，这个值可能不存在，当它说不存在时，那就肯定不存在**，当数据量比较大，其结果可能会出现误判。所有如果构造表数据量较大，但其 Join Key 足够小（或经过滤后）可以进行广播，那么使用 Semi-Join 可能会带来更多的收益。

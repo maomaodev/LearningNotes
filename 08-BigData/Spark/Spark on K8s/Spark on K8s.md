@@ -35,7 +35,7 @@ SparkSubmit
 
 通过 Kyuubi 提交 Spark 任务后，新开一个窗口重新进入 Kyuubi Pod，查看 Pod 内执行的进程，如下图所示。Client 端确实启动了一个 Java 进程，且主方法是 org.apache.spark.deploy.SparkSubmit，即**进程名为 SparkSubmit**。
 
-![Spark on K8s Client进程](./images/Spark on K8s Client进程.png)
+![Spark on K8s Client进程](<./images/Spark on K8s Client进程.png>)
 
 3、从 KubernetesClientApplication 类的 start() 方法开始。这里大致的处理逻辑就是，Client 通过 K8s 的 API 来写 Driver YAML 文件，然后向 K8s 集群申请创建 Driver Pod，最后通过 K8s Watch 机制监控 Driver Pod 的状态，一直等待作业完成才会退出。
 
@@ -359,7 +359,7 @@ esac
 
 执行 kubectl exec -it -n  1-xxxx-2jaylvrp kyuubi-kyuubi-connection-spark-sql-hadoop-4c6b364a-cf5e-4bd0-878e-5784b7b31836-4c6b364a-cf5e-4bd0-878e-5784b7b31836-driver  -- bash 进入 Driver Pod，查看 Pod 内执行的进程，如下图所示。Driver 确实启动了一个 Java 进程，且主方法是 org.apache.spark.deploy.SparkSubmit，参数 deploy-mode 为 client，即**进程名为 SparkSubmit**。
 
-![Spark on K8s Driver进程](./images/Spark on K8s Driver进程.png)
+![Spark on K8s Driver进程](<./images/Spark on K8s Driver进程.png>)
 
 2、启动 SparkSubmit 的源码，和上文分析的一样，只不过这次是以 client 模式提交的，所以不会再调用到 org.apache.spark.deploy.k8s.submit.KubernetesClientApplication，而是直接调用到 --class 指定的作业类名的 main 方法，在当前例子中就是直接执行 org.apache.spark.examples.SparkPi 的 main 方法。按照规范，用户代码中需要先创建 SparkContext，因此接下来从 SparkContext 开始分析。
 
@@ -803,7 +803,7 @@ CoarseGrainedExecutorBackend
 
 执行 `kubectl exec -it -n  1-xxxx-2jaylvrp kyuubi-kyuubi-connection-spark-sql-hadoop-4c6b364a-cf5e-4bd0-878e-5784b7b31836-4c6b364a-cf5e-4bd0-878e-5784b7b31836-exec-1 -- bash` 进入 Executor Pod，查看 Pod 内执行的进程，如下图所示。Executor 确实启动了一个 Java 进程，且主方法是 org.apache.spark.executor.CoarseGrainedExecutorBackend，即**进程名为 CoarseGrainedExecutorBackend**。同时，我们使用 netstat 命令查看 Executor Pod 中的网络情况，图中 7078 是 Driver rpc 端口，7079 是 Driver blockmanager 端口，Executor Server 由于没有指定端口，分配到了 41415。
 
-![Spark on K8s Executor进程](./images/Spark on K8s Executor进程.png)
+![Spark on K8s Executor进程](<./images/Spark on K8s Executor进程.png>)
 
 
 
@@ -818,7 +818,7 @@ Spark on K8s Cluster 模式提交流程图如下图所示。
 5、CoarseGrainedExecutorBackend 进程通过 RPC 协议向 Driver 注册 Executor，一旦收到 Driver 注册成功的消息，就向自己发送一条消息，生成 Executor 计算对象。
 6、之后 Driver 与 Executor 通过 inbox、outbox 进行收发消息，执行任务。
 
-![Spark On K8s Cluster模式流程图](./images/Spark On K8s Cluster模式流程图.png)
+![Spark On K8s Cluster模式流程图](<./images/Spark On K8s Cluster模式流程图.png>)
 
 
 

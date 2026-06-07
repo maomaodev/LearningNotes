@@ -449,7 +449,7 @@ FsHistoryProvider
 
 6、总结：SHS 与 Spark UI 整体执行流程如下图所示。
 
-![SHS 与 Spark UI 整体执行流程](./images/SHS 与 Spark UI 整体执行流程.png)
+![SHS 与 Spark UI 整体执行流程](<./images/SHS 与 Spark UI 整体执行流程.png>)
 
 - 如上图左侧所示，在 Spark 作业运行期间，Spark Driver 内部各模块会产生大量包含运行信息的 `SparkListenerEvent`，例如 `ApplicationStart`、`StageCompleted`、`MetricsUpdate` 等。所有的 `SparkListenerEvent` 都会被发送到 `LiveListenerBus` 中，然后在 `LiveListenerBus` 内部分发到各个子队列，由注册在子队列上的 `SparkListener` 进行处理。其中 `EventLoggingListener` 是专门用于生成事件日志的监听器。它会将事件序列化并写入到文件系统中（通常是分布式文件系统，如 HDFS）。事件的序列化格式以前是 JSON，现在可以配置为 Proto Buf 以提高性能和减小存储空间需求。每个应用程序的日志文件通常存储在一个配置的路径下。
 - 如上图右侧表示的是 SHS，核心组件之一是 `FsHistoryProvider`。它负责定期扫描配置的事件日志存储路径，遍历其中的事件日志文件，并提取关键信息，如 `application_id`、`user`、`status`、`start_time`、`end_time` 和 `event_log_path`，并将这些信息维护在一个列表中。当用户通过 UI 访问时，`FsHistoryProvider` 会根据请求查询这个列表，找到相应的事件日志文件，然后进行完整的读取和解析。解析过程本质上是一个回放（replay）过程。事件日志文件中的每一行都是一个序列化的事件。系统将这些事件逐行反序列化，并通过 `ReplayListener` 将事件中的信息反馈到 KVStore 中，以还原应用程序的状态。在 Spark 中，KVStore 存储各种类实例，这些实例反映了任务和应用程序的状态。前端 UI 从 KVStore 查询所需的对象数据，实现页面的动态渲染和状态展示。
@@ -462,7 +462,7 @@ FsHistoryProvider
 
 SHS 是基于内嵌的 jetty 来构建 HTTP 服务的，代码详见上一节。这里简单介绍一下 jetty 的架构，jetty 架构的核心是 Handler。一个请求过来时，会解析然后被封装成 Request，之后会交给 Server 对象中的 Handler 处理。Server 的 Handler 可以是各种类型的 Handler，因为 SHS 里面注入的是 ContextHandlerCollection，这里只介绍 ContextHandlerCollection。这个类也是 Handler 的一个实现类，可以理解为是 Handler 的集合，**持有一系列 Handler 对象，同时还能起到路由器的作用**。ContextHandlerCollection 基于 ArrayTernaryTrie 构造了一个字典树，用于快速匹配路径。当收到一个请求时，ContextHandlerCollection 根据 URL 找到对应的 Handler，然后把请求交给这个 Handler 去处理。Handler 里面封装了各种我们自己实现的 Servlet，最终请求就落到了具体的那个 Servlet 上执行了。
 
-![SHS Rest API](./images/SHS Rest API.png)
+![SHS Rest API](<./images/SHS Rest API.png>)
 
 SHS 在启动时，会往 ContextHandlerCollection 中加入一个 ServletContextHandler，这里放着 jersey 的 ServletContainer 类，用来提供 restful api。**jersey 会自动解析 org.apache.spark.status.api.v1 包下面的类，然后将对应的请求转发过去**。SHS 启动时还会注册其它 Handler，这里不多做介绍。
 

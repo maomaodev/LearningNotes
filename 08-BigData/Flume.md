@@ -276,7 +276,7 @@ a3.sinks.k3.channel = c3
 1. **ChannelSelector**：作用就是选出 Event 将要被发往哪个 Channel，共有两种类型， 分别是 Replicating（复制，默认类型）和 Multiplexing（多路复用）。 其中 ReplicatingSelector 会将同一个 Event 发往所有的 Channel，而 Multiplexing 会根据相应的原则，将不同的 Event 发往不同的 Channel。
 2. **SinkProcessor**：共有三种类型，分别是 DefaultSinkProcessor（对应的是单个的Sink） 、LoadBalancingSinkProcessor（对应的是 Sink Group，可以实现负 载均衡） 和 FailoverSinkProcessor （对应的是 Sink Group，可以实现故障转移）。
 
-![Flume Agent原理](./images/Flume/Flume Agent原理.png)
+![Flume Agent原理](<./images/Flume/Flume Agent原理.png>)
 
 
 

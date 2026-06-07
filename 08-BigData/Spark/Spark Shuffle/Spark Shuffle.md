@@ -31,7 +31,7 @@
 
 shuffle read 的拉取过程是一边拉取一边进行聚合的。每个 shuffle read task 都会有一个自己的 buffer 缓冲，每次都只能拉取与 buffer 缓冲相同大小的数据，然后通过内存中的一个 Map 进行聚合等操作。聚合完一批数据后，再拉取下一批数据，并放到 buffer 缓冲中进行聚合操作。以此类推，直到最后将所有数据到拉取完，并得到最终的结果。
 
-![未经优化的 HashShuffleManager](/Users/maomao/study/learning-notes/08-BigData/Spark/Spark Core/images/未经优化的 HashShuffleManager.png)
+![未经优化的 HashShuffleManager](</Users/maomao/study/learning-notes/08-BigData/Spark/Spark Core/images/未经优化的 HashShuffleManager.png>)
 
 
 
@@ -45,7 +45,7 @@ shuffle read 的拉取过程是一边拉取一边进行聚合的。每个 shuffl
 
 假设第二个 stage 有 100 个 task，第一个 stage 有 50 个 task，总共还是有 10 个 Executor，每个 Executor 执行 5 个 task。那么原本使用未经优化的 HashShuffleManager 时，每个 Executor 会产生 500 个磁盘文件，所有  Executor 会产生 5000 个磁盘文件的。但是此时经过优化之后，每个 Executor 创建的磁盘文件的数量的计算公式为：**CPU core 的数量 \* 下一个 stage 的 task 数量**。也就是说，每个 Executor 此时只会创建 100 个磁盘文件，所有 Executor 只会创建 1000 个磁盘文件。
 
-![优化后的 HashShuffleManager](/Users/maomao/study/learning-notes/08-BigData/Spark/Spark Core/images/优化后的 HashShuffleManager.png)
+![优化后的 HashShuffleManager](</Users/maomao/study/learning-notes/08-BigData/Spark/Spark Core/images/优化后的 HashShuffleManager.png>)
 
 
 
@@ -61,7 +61,7 @@ shuffle read 的拉取过程是一边拉取一边进行聚合的。每个 shuffl
 
 SortShuffleManager 由于有一个磁盘文件 merge 的过程，因此大大减少了文件数量。比如第一个 stage 有 50 个 task，总共有 10 个 Executor，每个 Executor 执行 5 个 task，而第二个 stage 有 100 个 task。由于**每个 task 最终只有一个磁盘文件**，因此，此时每个 Executor 上只有 5 个磁盘文件，所有 Executor 只有 50 个磁盘文件（加上索引文件共有 100 个磁盘文件）。
 
-![普通运行机制](/Users/maomao/study/learning-notes/08-BigData/Spark/Spark Core/images/普通运行机制.png)
+![普通运行机制](</Users/maomao/study/learning-notes/08-BigData/Spark/Spark Core/images/普通运行机制.png>)
 
 
 
@@ -75,7 +75,7 @@ SortShuffleManager 由于有一个磁盘文件 merge 的过程，因此大大减
 
 而**该机制与普通 SortShuffleManager 运行机制的不同在于：第一，磁盘写机制不同；第二，不会进行排序**。也就是说，启用该机制的最大好处在于，**shuffle write 过程中，不需要进行数据的排序操作，也就节省掉了这部分的性能开销**。
 
-![bypass 运行机制](/Users/maomao/study/learning-notes/08-BigData/Spark/Spark Core/images/bypass 运行机制.png)
+![bypass 运行机制](</Users/maomao/study/learning-notes/08-BigData/Spark/Spark Core/images/bypass 运行机制.png>)
 
 
 
